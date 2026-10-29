@@ -1,0 +1,93 @@
+name: Demo GIFs
+
+# Records the README GIFs on an iOS simulator (UI-test tours in UITests/, app in demo mode) and
+# commits them to docs/media/. Run by hand (Actions → Demo GIFs → Run workflow) after UI changes;
+# also runs when the tours themselves change. Vietnamese GIFs → docs/media/, English →
+# docs/media/en/ (README.en.md). ~10 macOS minutes (10x on a private repo).
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "UITests/**"
+      - ".github/workflows/demo-gifs.yml"
+      - ".github/scripts/record-tour.sh"
+
+concurrency:
+  group: demo-gifs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  record:
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen and ffmpeg
+        run: brew install xcodegen ffmpeg
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Boot a simulator
+        id: sim
+        run: |
+          udid=$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = [d for runtime, ds in json.load(sys.stdin)["devices"].items() if "iOS" in runtime for d in ds]
+          iphones = [d for d in devices if d["name"].startswith("iPhone")]
+          pick = next((d for d in iphones if d["name"] == "iPhone 16"), None) or next((d for d in iphones if "Pro" not in d["name"]), iphones[0])
+          print(pick["udid"])')
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl ui "$udid" appearance dark
+          xcrun simctl status_bar "$udid" override --time "9:41" --batteryState charged --batteryLevel 100 \
+            --cellularMode active --cellularBars 4 --wifiBars 3
+          # Nhà thờ Đức Bà, Saigon: the demo's home, work and parking spot are around it.
+          xcrun simctl location "$udid" set 10.77978,106.69902
+      - name: Build for testing
+        run: |
+          xcodebuild build-for-testing -project VespaNav.xcodeproj -scheme VespaNav \
+            -destination "id=${{ steps.sim.outputs.udid }}" -derivedDataPath build -quiet \
+            CODE_SIGNING_ALLOWED=NO
+      - name: Install app and grant location
+        run: |
+          udid=${{ steps.sim.outputs.udid }}
+          xcrun simctl install "$udid" build/Build/Products/Debug-iphonesimulator/VespaNav.app
+          xcrun simctl privacy "$udid" grant location-always com.nxnson.vespanav
+      - name: Record tours
+        run: |
+          mkdir -p docs/media
+          udid=${{ steps.sim.outputs.udid }}
+          # Warm-up: the first recording (and first app launch) of a fresh simulator starts seconds
+          # late, which shifted the first GIF onto a black launch screen and the home screen.
+          xcrun simctl io "$udid" recordVideo --force "$RUNNER_TEMP/warmup.mp4" &
+          warmup=$!
+          xcrun simctl launch "$udid" com.nxnson.vespanav -demoMode YES
+          sleep 8
+          xcrun simctl terminate "$udid" com.nxnson.vespanav
+          kill -INT "$warmup"; wait "$warmup" || true
+          for lang in vi en; do
+            dir=docs/media; [ "$lang" = en ] && dir=docs/media/en
+            .github/scripts/record-tour.sh "$udid" test1Navigation "$dir/navigation.gif" "$lang"
+            .github/scripts/record-tour.sh "$udid" test2Scooter "$dir/scooter.gif" "$lang"
+            .github/scripts/record-tour.sh "$udid" test3Trips "$dir/trips.gif" "$lang"
+            .github/scripts/record-tour.sh "$udid" test4Language "$dir/language.gif" "$lang"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: demo-gifs
+          path: docs/media/
+          retention-days: 14
+      - name: Commit GIFs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/media
+          if git diff --cached --quiet; then
+            echo "GIFs unchanged"
+            exit 0
+          fi
+          git commit -m "docs: update README demo GIFs"
+          git pull --rebase origin "${{ github.ref_name }}"
+          git push origin "HEAD:${{ github.ref_name }}"

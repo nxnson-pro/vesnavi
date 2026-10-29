@@ -1,0 +1,62 @@
+# XcodeGen spec — the .xcodeproj is generated (in CI or on a Mac with `xcodegen generate`), not committed.
+name: VespaNav
+options:
+  bundleIdPrefix: com.nxnson
+  deploymentTarget:
+    iOS: "17.0"
+
+packages:
+  NavCore:
+    path: NavCore
+
+targets:
+  VespaNav:
+    type: application
+    platform: iOS
+    sources:
+      - App
+    dependencies:
+      - package: NavCore
+    scheme:
+      testTargets:
+        - VespaNavUITests
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: VesNavi
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UILaunchScreen: {}
+        ITSAppUsesNonExemptEncryption: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSLocationWhenInUseUsageDescription: VesNavi cần vị trí để dẫn đường và gửi hướng rẽ lên màn hình xe.
+        NSLocationAlwaysAndWhenInUseUsageDescription: VesNavi cần vị trí khi khoá màn hình để tiếp tục dẫn đường.
+        NSBluetoothAlwaysUsageDescription: VesNavi kết nối Bluetooth với màn hình xe Vespa để hiển thị hướng rẽ.
+        UIBackgroundModes:
+          - location
+          - bluetooth-central
+          - bluetooth-peripheral
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nxnson.vespanav
+        MARKETING_VERSION: "1.0.6"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CURRENT_PROJECT_VERSION: "1"
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+
+  # Scripted tours recorded into the README GIFs (.github/workflows/demo-gifs.yml), not checks.
+  VespaNavUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - UITests
+    dependencies:
+      - target: VespaNav
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nxnson.vespanav.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"

@@ -1,0 +1,5 @@
+/* Permission prompts in English (iOS picks the file matching the iPhone / per-app language). */
+"CFBundleDisplayName" = "VesNavi";
+"NSLocationWhenInUseUsageDescription" = "VesNavi uses your location to navigate and send turn directions to the scooter display.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "VesNavi uses your location while the screen is locked to keep navigating and to remember where you parked.";
+"NSBluetoothAlwaysUsageDescription" = "VesNavi connects to the Vespa display over Bluetooth to show turn directions.";

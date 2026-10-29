@@ -1,0 +1,5 @@
+/* Lời xin quyền tiếng Việt (iOS chọn theo ngôn ngữ iPhone / ngôn ngữ của app trong Cài đặt). */
+"CFBundleDisplayName" = "VesNavi";
+"NSLocationWhenInUseUsageDescription" = "VesNavi cần vị trí để dẫn đường và gửi hướng rẽ lên màn hình xe.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "VesNavi cần vị trí khi khoá màn hình để tiếp tục dẫn đường và nhớ chỗ đỗ xe.";
+"NSBluetoothAlwaysUsageDescription" = "VesNavi kết nối Bluetooth với màn hình xe Vespa để hiển thị hướng rẽ.";

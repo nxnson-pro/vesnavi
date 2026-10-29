@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    paths:
+      - "App/**"
+      - "NavCore/**"
+      - "project.yml"
+      - ".github/workflows/**"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Cheap Linux job first: pure-Swift logic tests. macOS minutes cost 10x on private repos.
+  test-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test NavCore
+        run: swift test --package-path NavCore
+
+  build-ios:
+    needs: test-core
+    runs-on: macos-15
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate
+      - name: Build (unsigned)
+        run: |
+          xcodebuild -project VespaNav.xcodeproj -scheme VespaNav \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build -quiet \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
+            build
+      - name: Package IPA
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/VespaNav.app Payload/
+          zip -qry VespaNav.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VespaNav-ipa
+          path: VespaNav.ipa
+          retention-days: 14
+      # A new MARKETING_VERSION in project.yml publishes the IPA once as Release vX.Y.Z (tag created
+      # here), which never expires — artifacts above are kept 14 days only.
+      - name: Check for a new version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/.*MARKETING_VERSION: *"\(.*\)".*/\1/p' project.yml)
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+          fi
+      # SideStore/AltStore source: add https://github.com/<owner>/<repo>/releases/latest/download/apps.json
+      # once in SideStore → Sources; new releases then show up as updates (public repo only).
+      - name: SideStore source
+        if: steps.version.outputs.new == 'true'
+        run: |
+          python3 .github/scripts/sidestore-source.py "${TAG#v}" "${{ github.run_number }}" \
+            "$GITHUB_REPOSITORY" VespaNav.ipa apps.json
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+      - name: Publish release
+        if: steps.version.outputs.new == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: VesNavi ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          files: |
+            VespaNav.ipa
+            apps.json
+          body_path: CHANGELOG.md
+
