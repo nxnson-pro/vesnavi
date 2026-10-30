@@ -35,6 +35,12 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+      # The ~1 GB system image download sometimes arrives corrupt; keep it between runs.
+      - name: Cache emulator system image
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64
+          key: system-image-34-google_apis-x86_64
       - name: Run on the emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
