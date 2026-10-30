@@ -1,3 +1,8 @@
+# VesNavi 1.0.8
+
+- **Bản Android (thử nghiệm)**: tải `VesNavi.apk` ở release này (Android 8.0 trở lên). Đủ tính năng như bản iOS — dẫn đường lên màn hình xe, thông số xe, hành trình & xăng, bảo dưỡng, địa điểm, chỗ đỗ, Tiếng Việt / English. Bản đồ OpenFreeMap và tìm địa chỉ Photon (dữ liệu OpenStreetMap, miễn phí). ⚠️ Chưa thử trên xe thật; có lỗi hãy dùng nút báo lỗi bên dưới. Bản này ký bằng khoá tạm: lần cập nhật sau có thể phải gỡ cài đặt rồi cài lại.
+- **Báo lỗi lên GitHub** (Bluetooth Lab hoặc Cài đặt → Thông tin): app mở sẵn form báo lỗi kèm log Bluetooth; địa chỉ Bluetooth, khoá ghép đôi và tên thiết bị khác được ẩn trước khi gửi. Cần tài khoản GitHub, bạn bấm *Submit* thì mới gửi.
+
 # VesNavi 1.0.7
 
 - **Ủng hộ tác giả** (Cài đặt → Thông tin): Ko-fi hoặc chuyển khoản VietQR, hoàn toàn tự nguyện — app vẫn miễn phí, đầy đủ tính năng, không quảng cáo hay nhắc nhở.
