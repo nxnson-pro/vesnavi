@@ -44,5 +44,11 @@ Vespa GTS Supertech 300 HPE. Free data only (MapKit search, GraphHopper/OSRM rou
 - `UITests/TourTests.swift` = scripted tours (not checks), one per GIF; the app runs with `-demoMode YES` (`#if DEBUG` only: `AppModel.startDemo`, `VespaBLE.startDemo`, `TripStore.seedDemo` — fake connected scooter, rides, places; CoreBluetooth untouched).
 - `.github/workflows/demo-gifs.yml` (manual, or on changes to the tours): build for the simulator, `simctl io recordVideo` per test via `.github/scripts/record-tour.sh`, ffmpeg → `docs/media/*.gif`, committed by the workflow. Key UI elements carry `accessibilityIdentifier`s for the tours — keep them when editing views.
 
+## Android (`android/`, experimental, never run on the scooter yet)
+- `android/navcore` = Kotlin port of `NavCore` (pure JVM, `org.json` compileOnly because Android ships it). **Keep it in step with the Swift NavCore**: protocol/logic changes go into both, with the same test vectors. Bytes are `List<Int>` (0…255), times epoch millis.
+- `android/app` = Compose port of `App/`: `AppModel`, `VespaBLE` (BluetoothGatt central for PMP3 / Cobo key link, `BluetoothGattServer` + `BluetoothLeAdvertiser` for the Cobo data link), `ScooterService` (foreground service, location|connectedDevice — Android's background mode), MapLibre + OpenFreeMap map, Photon search, same settings keys as iOS. Strings inline via `L(vi, en)`.
+- Version = `MARKETING_VERSION` from `project.yml`; CI `build-android` makes `VesNavi.apk`, attached to the same release as the IPA. Release signing from repo secrets `ANDROID_KEYSTORE_BASE64/…PASSWORD/ANDROID_KEY_ALIAS/ANDROID_KEY_PASSWORD`, else debug key.
+- No Android SDK in the cloud sandbox (Google Maven blocked): `./gradlew :navcore:test -Pvesnavi.coreOnly=true` runs locally (uses `core-only.gradle.kts`), the app only compiles in CI.
+
 ## Tests
-`swift test --package-path NavCore` (CI runs it in `swift:6.0` container).
+`swift test --package-path NavCore` (CI runs it in `swift:6.0` container); Kotlin: `cd android && ./gradlew :navcore:test -Pvesnavi.coreOnly=true`.

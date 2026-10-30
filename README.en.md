@@ -1,4 +1,4 @@
-# VesNavi (iOS)
+# VesNavi (iOS + Android)
 
 [Tiếng Việt](README.md) · **English**
 
@@ -69,11 +69,22 @@ The app isn't on the App Store; install it yourself with a free Apple ID.
 3. Open the VesNavi source → **Get**. New versions show up as **Update** in SideStore.
 4. Enable background refresh for SideStore (or a daily Shortcuts automation running "Refresh All Apps") so the 7-day limit never hits.
 
+## Android (experimental)
+
+1. Open **Releases** → latest version → download **`VesNavi.apk`** on the Android phone (8.0 or later).
+2. Open the file → allow **installing unknown apps** when asked → Install.
+3. Allow **Location**, **Notifications** and (when you tap Connect) **Nearby devices / Bluetooth**.
+
+- Same features as the iOS app; the map is **OpenFreeMap** (OpenStreetMap data) and address search is **Photon** — both free, no key.
+- While navigating or connected to the scooter the app keeps running with a **"VesNavi"** notification (tap **Stop** to quit it).
+- ⚠️ **Not tried on a real scooter yet.** The GTS Supertech (PMP2) needs a phone that can *advertise over BLE* (most phones from 2018 on). If it won't connect: **My scooter → Bluetooth Lab → Export log** and send it in.
+- Until the releases are signed with a fixed key, a new version has to be installed by **uninstalling the old one first** (app data is lost).
+
 ## Connecting the scooter (first time)
 
 1. Turn the key so the dashboard is on.
 2. On the dashboard: **Settings → Configuration → Pairing configuration**.
-3. On the iPhone: **Settings → Bluetooth** → choose **"BT ROUTER"** (code **0000** if asked).
+3. On the phone: **Settings → Bluetooth** → choose **"BT ROUTER"** (code **0000** if asked).
 4. Fully close the official Vespa app (if installed) → in VesNavi tap the scooter badge → **Connect**.
 
 You only pair once; after that VesNavi connects by itself when you start the scooter. For the parking spot to be saved with the phone in your pocket, allow **"Always"** location access. If something goes wrong: **My scooter → Bluetooth Lab → Export log** and attach it to your report.
@@ -84,10 +95,11 @@ There's no need for a Mac: GitHub Actions builds everything.
 
 - **Project:** `project.yml` is an [XcodeGen](https://github.com/yonaskolb/XcodeGen) spec. The `.xcodeproj` is generated in CI and not committed. On a Mac: `xcodegen generate`, then open `VespaNav.xcodeproj`.
 - **CI** (`.github/workflows/ci.yml`) runs on every push, in this order:
-  1. `NavCore` unit tests on Linux.
-  2. Unsigned `VespaNav.ipa` build on macOS.
-  3. GitHub Release whenever `MARKETING_VERSION` in `project.yml` changes, with the IPA and the SideStore source `apps.json`.
-- **Tests:** `swift test --package-path NavCore` (pure Swift, runs on Linux or macOS).
+  1. `NavCore` unit tests and the Kotlin `navcore` tests on Linux.
+  2. `VesNavi.apk` build on Linux, unsigned `VespaNav.ipa` build on macOS.
+  3. GitHub Release whenever `MARKETING_VERSION` in `project.yml` changes (Android uses the same version), with the IPA, the APK and the SideStore source `apps.json`.
+- **Tests:** `swift test --package-path NavCore` (pure Swift, runs on Linux or macOS); `cd android && ./gradlew :navcore:test -Pvesnavi.coreOnly=true` (no Android SDK needed).
+- **Android:** `cd android && ./gradlew :app:assembleRelease` (Android SDK, JDK 17). Release signing comes from the repo secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; without them the APK is debug-signed.
 
 ## Demo GIFs
 
@@ -119,5 +131,7 @@ App/                SwiftUI app: AppModel, VespaBLE (Bluetooth), LocationService
 UITests/            Scripted tours for the demo GIFs (demo mode)
 docs/               Protocol notes (pmp3, pmp2-cobo), Bluetooth capture guide, media/ (GIFs)
 project.yml         XcodeGen spec
-.github/workflows/  CI (tests → IPA → release) and Demo GIFs
+android/navcore/    Kotlin port of NavCore (JVM, same test vectors)
+android/app/        Android app: Jetpack Compose, MapLibre, BLE (central + GATT server), foreground service
+.github/workflows/  CI (tests → APK + IPA → release) and Demo GIFs
 ```
