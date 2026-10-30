@@ -119,8 +119,7 @@ tap "English" || exit 1
 sleep 2
 check settings
 shot settings-english
-adb shell input swipe 500 1800 500 300 300; sleep 1
-adb shell input swipe 500 1800 500 300 300; sleep 1
+for _ in 1 2 3 4 5 6; do adb shell input swipe 500 1800 500 300 300; sleep 1; done
 tap "Report a bug on GitHub" || exit 1
 sleep 2
 adb shell input text "Smoke%stest%sreport"
