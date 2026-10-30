@@ -184,7 +184,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     private val lastWarning = mutableMapOf<Warning, Long>()
     private var lowChargeSince: Long? = null
 
-    private fun setState(s: LinkState) {
+    private fun changeState(s: LinkState) {
         if (state == s) return
         state = s
         onStateChanged?.invoke()
@@ -208,7 +208,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             when (intent.getIntExtra(BluetoothAdapter.EXTRA_STATE, BluetoothAdapter.ERROR)) {
                 BluetoothAdapter.STATE_ON -> {
                     append(L("Bluetooth bật", "Bluetooth on"))
-                    setState(LinkState.IDLE)
+                    changeState(LinkState.IDLE)
                     ensureStarted()
                     reconnectIfRemembered()
                 }
@@ -218,7 +218,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                     endServerLink(reconnect = false)
                     resetCentralLink()
                     gatt = null
-                    setState(LinkState.OFF)
+                    changeState(LinkState.OFF)
                 }
             }
         }
@@ -227,11 +227,11 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     /** Opens the GATT server and starts auto-reconnect; call again after permissions were granted. */
     fun ensureStarted() {
         when {
-            manager == null || adapter == null -> setState(LinkState.OFF)
-            !hasPermissions() -> setState(LinkState.UNAUTHORIZED)
-            adapter?.isEnabled != true -> setState(LinkState.OFF)
+            manager == null || adapter == null -> changeState(LinkState.OFF)
+            !hasPermissions() -> changeState(LinkState.UNAUTHORIZED)
+            adapter?.isEnabled != true -> changeState(LinkState.OFF)
             else -> {
-                if (state == LinkState.UNAUTHORIZED || state == LinkState.OFF) setState(LinkState.IDLE)
+                if (state == LinkState.UNAUTHORIZED || state == LinkState.OFF) changeState(LinkState.IDLE)
                 if (server == null) {
                     append(L("Khởi tạo Bluetooth — Android ${Build.VERSION.RELEASE}, máy ${Build.MODEL}", "Bluetooth init — Android ${Build.VERSION.RELEASE}, device ${Build.MODEL}"))
                     openServer()
@@ -251,7 +251,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         val scanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
         runCatching { scanner.startScan(null, scanSettings, scanCallback) }
             .onFailure { append(L("⚠️ Không quét được: ${it.message}", "⚠️ Scan failed: ${it.message}")); return }
-        setState(LinkState.SCANNING)
+        changeState(LinkState.SCANNING)
         append(L("Bắt đầu quét", "Scan started"))
         // Android throttles long scans; 30 s is plenty to find a scooter next to the phone.
         scanStop?.cancel()
@@ -278,7 +278,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     fun stopScan() {
         scanStop?.cancel()
         if (hasPermissions()) runCatching { adapter?.bluetoothLeScanner?.stopScan(scanCallback) }
-        if (state == LinkState.SCANNING) setState(LinkState.IDLE)
+        if (state == LinkState.SCANNING) changeState(LinkState.IDLE)
     }
 
     fun connect(address: String, autoConnect: Boolean = false) {
@@ -298,7 +298,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         endServerLink(reconnect = false)
         closeGatt()
         val device = runCatching { a.getRemoteDevice(address) }.getOrNull() ?: return
-        setState(LinkState.CONNECTING)
+        changeState(LinkState.CONNECTING)
         append(L("Kết nối tới ${device.name ?: address}", "Connecting to ${device.name ?: address}"))
         // autoConnect = true waits in the background until the scooter is in range (like a pending iOS connect).
         gatt = device.connectGatt(context, autoConnect, gattCallback, BluetoothDevice.TRANSPORT_LE)
@@ -309,7 +309,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         autoConnectOnDiscovery = false
         closeGatt()
         endServerLink(reconnect = false)
-        setState(LinkState.IDLE)
+        changeState(LinkState.IDLE)
     }
 
     /** Next connection starts a brand-new pairing (the TFT may ask to confirm). */
@@ -457,7 +457,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             )
             PMP3Session.Event.Authenticated -> append(L("✅ Xe chấp nhận thiết bị", "✅ Scooter accepted the phone"))
             is PMP3Session.Event.Ready -> {
-                setState(if (event.ready) LinkState.READY else LinkState.HANDSHAKING)
+                changeState(if (event.ready) LinkState.READY else LinkState.HANDSHAKING)
                 append(if (event.ready) L("✅ Màn hình sẵn sàng nhận dẫn đường", "✅ TFT ready for navigation") else L("Màn hình chưa sẵn sàng (45 … 00)", "TFT not ready (45 … 00)"))
                 if (event.ready) startPmp3KeepAlive()
             }
@@ -535,7 +535,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         override fun onScanFailed(errorCode: Int) {
             main.post {
                 append(L("⚠️ Quét lỗi $errorCode", "⚠️ Scan error $errorCode"))
-                if (state == LinkState.SCANNING) setState(LinkState.IDLE)
+                if (state == LinkState.SCANNING) changeState(LinkState.IDLE)
             }
         }
     }
@@ -570,7 +570,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                 }
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
                     connectedName = runCatching { g.device.name }.getOrNull()
-                    setState(LinkState.DISCOVERING)
+                    changeState(LinkState.DISCOVERING)
                     resetCentralLink()
                     settings.lastScooterAddress = g.device.address
                     append(L("Đã kết nối ${connectedName ?: ""} — đọc toàn bộ dịch vụ", "Connected ${connectedName ?: ""} — reading all services"))
@@ -587,7 +587,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                         return@post
                     }
                     append(L("Mất kết nối (mã $status)", "Disconnected (status $status)"))
-                    setState(LinkState.IDLE)
+                    changeState(LinkState.IDLE)
                     reconnectIfRemembered()
                 }
             }
@@ -651,7 +651,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         }
         val proto = linkProtocol
         if (proto == null) {
-            setState(LinkState.UNKNOWN_SERVICE)
+            changeState(LinkState.UNKNOWN_SERVICE)
             append(L("⚠️ Không có dịch vụ PMP3 (0x1815) hay Cobo — chưa hỗ trợ xe này", "⚠️ No PMP3 (0x1815) or Cobo service — this scooter isn't supported yet"))
             return
         }
@@ -671,7 +671,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             append(L("⚠️ Không thấy kênh notify $notifyId", "⚠️ Notify characteristic $notifyId not found"))
             return
         }
-        setState(LinkState.HANDSHAKING)
+        changeState(LinkState.HANDSHAKING)
         g.setCharacteristicNotification(notify, true)
         val cccd = notify.getDescriptor(CCCD)
         if (cccd == null) {
@@ -767,12 +767,12 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             append(L("⚠️ Điện thoại chưa sẵn sàng làm máy chủ Bluetooth — đóng link và thử lại", "⚠️ Phone GATT server not ready — closing the link, will retry"))
             openServer()
             closeGatt()
-            setState(LinkState.IDLE)
+            changeState(LinkState.IDLE)
             reconnectIfRemembered(force = true)
             return
         }
         awaitingScooter = true
-        setState(LinkState.WAITING_FOR_SCOOTER)
+        changeState(LinkState.WAITING_FOR_SCOOTER)
         startAdvertising()
         append(L("Phát quảng bá dịch vụ Cobo và đóng link lấy khoá", "Advertising the Cobo service and closing the key link"))
         closeGatt()
@@ -938,7 +938,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         scooterSubscribed = true
         peakRPM = 0
         if (serverSession == null) serverSession = CoboServerSession(coboAnswer)
-        if (state != LinkState.READY) setState(LinkState.HANDSHAKING)
+        if (state != LinkState.READY) changeState(LinkState.HANDSHAKING)
         append(L("Xe đã kết nối vào điện thoại (link dữ liệu)", "Scooter connected to the phone (data link)"))
         pumpIndications()
         serverWatchdog = scope.launch {
@@ -982,7 +982,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                 }
             }
             CoboServerSession.Event.Ready -> {
-                setState(LinkState.READY)
+                changeState(LinkState.READY)
                 append(L("✅ Màn hình sẵn sàng nhận dẫn đường (PMP2)", "✅ TFT ready for navigation (PMP2)"))
                 startCoboStream()
             }
@@ -1126,7 +1126,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         popup = null
         popupTicksLeft = 0
         lowChargeSince = null
-        if (wasCobo && state in setOf(LinkState.WAITING_FOR_SCOOTER, LinkState.HANDSHAKING, LinkState.READY)) setState(LinkState.IDLE)
+        if (wasCobo && state in setOf(LinkState.WAITING_FOR_SCOOTER, LinkState.HANDSHAKING, LinkState.READY)) changeState(LinkState.IDLE)
         // Part of the handshake itself, so retry even when auto-reconnect is off.
         if (reconnect) reconnectIfRemembered(force = true)
     }
