@@ -4,7 +4,7 @@
 
 A **free** iPhone navigation app that shows turn-by-turn directions on the TFT dashboard of the **Vespa GTS Supertech 300 HPE**, replacing the official app's paid navigation. It also shows live engine data, records your rides, tracks fuel and reminds you of service. Vietnamese / English.
 
-**Current version: 1.0.6** — see [CHANGELOG.md](CHANGELOG.md) (in Vietnamese).
+**Current version: 1.0.7** — see [CHANGELOG.md](CHANGELOG.md) (in Vietnamese). [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/nxnson)
 
 | Navigation (simulated) | My scooter | Trips | Vietnamese / English |
 |:---:|:---:|:---:|:---:|
@@ -96,6 +96,13 @@ The GIFs at the top are recorded automatically, without a Mac:
 - **Tours:** `UITests/TourTests.swift` holds scripted tours through the app, one per GIF.
 - **Demo mode:** the app runs with `-demoMode YES` (Debug builds only). It fakes a connected scooter with live engine data, plus ride history, fuel, service items and saved places around District 1, Saigon. The simulator has no Bluetooth, so the real dashboard can't be recorded.
 - **Workflow:** **Demo GIFs** (Actions → *Demo GIFs* → *Run workflow*) builds for the simulator and records every tour in Vietnamese and English. It converts the recordings to GIFs and commits them to `docs/media/` and `docs/media/en/`.
+
+## Support
+
+VesNavi is free and complete. If it's useful to you, you can buy the author a coffee — entirely optional:
+
+- [☕ Ko-fi](https://ko-fi.com/nxnson) (card / PayPal)
+- Bank transfer in Vietnam (VietQR, Techcombank): see the [QR code](docs/media/vietqr.png)
 
 ## License
 

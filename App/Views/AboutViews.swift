@@ -56,6 +56,7 @@ struct SafetyNoticeView: View {
 struct AboutSection: View {
     let version: String
     @State private var showSafety = false
+    @State private var showSupport = false
 
     var body: some View {
         Section {
@@ -70,6 +71,10 @@ struct AboutSection: View {
             .sheet(isPresented: $showSafety) {
                 SafetyNoticeView { showSafety = false }
             }
+            Button { showSupport = true } label: {
+                Label(L("Ủng hộ tác giả", "Support the author"), systemImage: "cup.and.saucer")
+            }
+            .sheet(isPresented: $showSupport) { SupportView() }
             LabeledContent(L("Phiên bản", "Version"), value: version)
         } header: {
             Text(L("Thông tin", "About"))

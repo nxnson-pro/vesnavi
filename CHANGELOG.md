@@ -1,3 +1,7 @@
+# VesNavi 1.0.7
+
+- **Ủng hộ tác giả** (Cài đặt → Thông tin): Ko-fi hoặc chuyển khoản VietQR, hoàn toàn tự nguyện — app vẫn miễn phí, đầy đủ tính năng, không quảng cáo hay nhắc nhở.
+
 # VesNavi 1.0.6
 
 - Phát hành công khai: giấy phép MIT, ghi chú giao thức viết lại theo hướng tương thích.
