@@ -160,12 +160,20 @@ fun RouteMap(model: AppModel, recenter: Int, bottomPaddingPx: Int, modifier: Mod
     }
 
     // Camera: user on launch / recenter, whole route in preview, follow while navigating.
-    LaunchedEffect(map, recenter, gps != null) {
+    LaunchedEffect(map, recenter, gps != null, phase) {
         val m = map ?: return@LaunchedEffect
         val here = gps ?: return@LaunchedEffect
+        if (centeredOnce && recenter == 0 && phase == AppModel.Phase.IDLE) {
+            // Back from navigating: flat, north-up map like before.
+            if (m.cameraPosition.tilt > 0) {
+                m.animateCamera(CameraUpdateFactory.newCameraPosition(CameraPosition.Builder().target(LatLng(here.latitude, here.longitude)).zoom(15.0).tilt(0.0).bearing(0.0).build()))
+            }
+            return@LaunchedEffect
+        }
         if (centeredOnce && recenter == 0) return@LaunchedEffect
         centeredOnce = true
-        m.animateCamera(CameraUpdateFactory.newLatLngZoom(LatLng(here.latitude, here.longitude), 15.0))
+        val flat = CameraPosition.Builder().target(LatLng(here.latitude, here.longitude)).zoom(15.0).tilt(0.0).bearing(0.0).build()
+        m.animateCamera(CameraUpdateFactory.newCameraPosition(flat))
     }
     LaunchedEffect(map, phase, route) {
         val m = map ?: return@LaunchedEffect

@@ -64,7 +64,7 @@ gps() { adb emu geo fix 106.7009 10.7769 >/dev/null; }
 
 adb logcat -c
 adb install -r "$APK" || exit 1
-for p in ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION POST_NOTIFICATIONS; do
+for p in ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION POST_NOTIFICATIONS BLUETOOTH_SCAN BLUETOOTH_CONNECT BLUETOOTH_ADVERTISE; do
   adb shell pm grant $PKG android.permission.$p 2>/dev/null
 done
 gps
@@ -99,6 +99,10 @@ tap "Chưa kết nối xe" || exit 1
 sleep 3
 check scooter
 shot scooter
+tap "Kết nối" || exit 1
+sleep 6
+check connect
+shot scanning
 adb shell input swipe 500 1600 500 400 300
 sleep 1
 shot scooter-scrolled

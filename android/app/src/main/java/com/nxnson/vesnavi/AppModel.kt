@@ -95,7 +95,8 @@ class AppModel(private val context: Context) {
 
     fun permissionsChanged() {
         location.permissionChanged()
-        ble.ensureStarted()
+        // Bluetooth stays untouched (and the badge says "not connected") until the rider asks for it.
+        if (ble.hasPermissions()) ble.ensureStarted()
         updateService()
     }
 
