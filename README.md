@@ -4,7 +4,7 @@
 
 App iOS dẫn đường **miễn phí**, hiển thị hướng rẽ lên màn hình TFT của **Vespa GTS Supertech 300 HPE** — thay thế app Vespa MIA (HERE Maps trả phí). Kèm thông số xe trực tiếp, ghi hành trình, theo dõi xăng và nhắc bảo dưỡng. Tiếng Việt / English.
 
-**Phiên bản hiện tại: 1.0.6** — xem [CHANGELOG.md](CHANGELOG.md).
+**Phiên bản hiện tại: 1.0.7** — xem [CHANGELOG.md](CHANGELOG.md). [![Ủng hộ trên Ko-fi](https://img.shields.io/badge/Ko--fi-%E1%BB%A6ng%20h%E1%BB%99-FF5E5B?logo=kofi&logoColor=white)](#ủng-hộ)
 
 | Dẫn đường (mô phỏng) | Xe của tôi | Hành trình | Tiếng Việt / English |
 |:---:|:---:|:---:|:---:|
@@ -81,6 +81,15 @@ Các GIF ở đầu trang được quay tự động, không cần Mac:
 - `UITests/TourTests.swift` — kịch bản bấm qua từng màn hình (mỗi test = 1 GIF).
 - App chạy **chế độ demo** (`-demoMode YES`, chỉ có trong bản Debug): xe "đã kết nối" với thông số giả lập, lịch sử hành trình, xăng, bảo dưỡng, Nhà/Công ty/chỗ đỗ quanh Quận 1. Máy ảo không có Bluetooth nên không quay được màn hình xe thật.
 - Workflow **Demo GIFs** (tab Actions → *Demo GIFs* → *Run workflow*) build app cho máy ảo, quay từng kịch bản bằng tiếng Việt và tiếng Anh, chuyển sang GIF và tự commit vào `docs/media/` (bản tiếng Anh ở `docs/media/en/`, dùng cho [README.en.md](README.en.md)). Chạy lại sau khi đổi giao diện (~10 phút macOS).
+
+## Ủng hộ
+
+VesNavi miễn phí và đầy đủ tính năng. Nếu app có ích, bạn có thể mời tác giả một ly cà phê — hoàn toàn tự nguyện:
+
+- [☕ Ko-fi](https://ko-fi.com/nxnson) (thẻ / PayPal)
+- Chuyển khoản VietQR (Techcombank):
+
+<img src="docs/media/vietqr.png" width="220" alt="VietQR Techcombank">
 
 ## Giấy phép
 
