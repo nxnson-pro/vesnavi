@@ -78,7 +78,7 @@ App iOS dẫn đường **miễn phí**, hiển thị hướng rẽ lên màn h�
 3. Trên điện thoại: **Cài đặt → Bluetooth** → chọn **"BT ROUTER"** (mã **0000** nếu được hỏi).
 4. Đóng hẳn app Vespa chính hãng (nếu có) → trong VesNavi chạm biểu tượng xe → **Kết nối**.
 
-Chỉ cần ghép đôi một lần, những lần sau app tự kết nối khi bật xe. Có lỗi: **Xe của tôi → Bluetooth Lab → Xuất log** và gửi cho dev.
+Chỉ cần ghép đôi một lần, những lần sau app tự kết nối khi bật xe. Có lỗi: **Xe của tôi → Bluetooth Lab → Báo lỗi lên GitHub** — app mở sẵn form issue kèm log (đã ẩn địa chỉ Bluetooth, khoá ghép đôi, tên thiết bị khác), bạn chỉ cần đăng nhập GitHub và bấm *Submit*. Hoặc mở [form báo lỗi](https://github.com/nxnson-pro/vesnavi/issues/new?template=bug_report.yml) trực tiếp.
 
 ## Phát hành phiên bản mới
 

@@ -119,6 +119,19 @@ tap "English" || exit 1
 sleep 2
 check settings
 shot settings-english
+adb shell input swipe 500 1800 500 300 300; sleep 1
+adb shell input swipe 500 1800 500 300 300; sleep 1
+tap "Report a bug on GitHub" || exit 1
+sleep 2
+adb shell input text "Smoke%stest%sreport"
+sleep 1
+check bug-report
+shot bug-report
+tap "Open GitHub to send" || exit 1
+sleep 6
+check open-github
+shot github-issue
+adb shell am start -n $PKG/.MainActivity >/dev/null; sleep 3
 adb shell input keyevent KEYCODE_BACK; sleep 2
 shot map-english
 check final

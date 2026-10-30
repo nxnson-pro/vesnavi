@@ -34,6 +34,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
+import com.nxnson.vesnavi.navcore.BugReport
 import com.nxnson.vesnavi.navcore.Bytes
 import com.nxnson.vesnavi.navcore.Cobo
 import com.nxnson.vesnavi.navcore.CoboKeyFetch
@@ -183,6 +184,8 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     private var popupTicksLeft = 0
     private val lastWarning = mutableMapOf<Warning, Long>()
     private var lowChargeSince: Long? = null
+    /** Keys and auth answers seen this session, removed from logs posted publicly. */
+    private val logSecrets = mutableSetOf<Bytes>()
 
     private fun changeState(s: LinkState) {
         if (state == s) return
@@ -350,6 +353,15 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
 
     /** Writes the log to the cache (shared through the FileProvider). */
     fun exportLog(): File {
+        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
+        return File(dir, "vespa-bluetooth-log.txt").apply { writeText(logText(redacted = false)) }
+    }
+
+    /**
+     * `redacted`: for a public GitHub issue — no Bluetooth addresses, pairing keys, auth answers or
+     * names of other people's devices.
+     */
+    fun logText(redacted: Boolean): String {
         val f = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSZ", Locale.US)
         val lines = mutableListOf(
             "VesNavi — Bluetooth log",
@@ -362,8 +374,10 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         lines += gattTable
         lines += listOf("", "LOG:")
         lines += log.map { "${f.format(Date(it.time))}  ${it.text}" }
-        val dir = File(context.cacheDir, "exports").apply { mkdirs() }
-        return File(dir, "vespa-bluetooth-log.txt").apply { writeText(lines.joinToString("\n")) }
+        val text = lines.joinToString("\n")
+        if (!redacted) return text
+        val strangers = discovered.filter { !it.isLikelyVespa && it.name != "(không tên)" && it.name != "(no name)" }.map { it.name }
+        return BugReport.redact(text, logSecrets.flatMap { BugReport.hexVariants(it) } + strangers)
     }
 
     // Dashboard sink
@@ -446,6 +460,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         when (event) {
             is PMP3Session.Event.PairingChanged -> {
                 pairing = event.pairing
+                event.pairing.key?.let { logSecrets.add(it) }
                 gatt?.device?.address?.let { settings.setPairing(it, Persistence.pairing(event.pairing)) }
                 append(L("Lưu pairing", "Pairing saved") + ": id=${Hex.encode(event.pairing.deviceID, "")} key=${event.pairing.key?.let { Hex.encode(it, "") } ?: "-"}")
             }
@@ -709,6 +724,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         val address = gatt?.device?.address ?: return
         val stored = settings.pairing(address)?.let(Persistence::pairing)
         pairing = stored
+        stored?.key?.let { logSecrets.add(it) }
         val s = PMP3Session(stored, Build.MODEL)
         session = s
         append(L("Notify 2A5A bật — bắt đầu bắt tay", "Notify 2A5A on — starting handshake"))
@@ -754,6 +770,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             }
             is CoboKeyFetch.Event.Answer -> {
                 coboAnswer = event.bytes
+                logSecrets.add(event.bytes)
                 append(L("🔑 Link lấy khoá: nhận câu trả lời ${Hex.encode(event.bytes)}", "🔑 Key link: answer ${Hex.encode(event.bytes)}"))
                 beginServerPhase()
             }

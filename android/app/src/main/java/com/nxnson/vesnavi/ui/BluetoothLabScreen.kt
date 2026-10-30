@@ -49,6 +49,7 @@ fun BluetoothLabScreen(model: AppModel, nav: Navigator, requestBluetooth: () -> 
     var rawHex by remember { mutableStateOf("") }
     var line1 by remember { mutableStateOf("Xin chao") }
     var line2 by remember { mutableStateOf("VesNavi") }
+    var showReport by remember { mutableStateOf(false) }
     val time = remember { SimpleDateFormat("HH:mm:ss", Locale.US) }
 
     fun test(i: Int, d: Int) {
@@ -155,6 +156,9 @@ fun BluetoothLabScreen(model: AppModel, nav: Navigator, requestBluetooth: () -> 
             }
             item {
                 SectionLabel(L("Log (${ble.log.size} dòng, mới nhất ở trên)", "Log (${ble.log.size} lines, newest first)"))
+                Button(onClick = { showReport = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text(L("🐞 Báo lỗi lên GitHub (kèm log)", "🐞 Report a bug on GitHub (with log)"))
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = {
                         val file = ble.exportLog()
@@ -170,4 +174,5 @@ fun BluetoothLabScreen(model: AppModel, nav: Navigator, requestBluetooth: () -> 
             }
         }
     }
+    if (showReport) BugReportDialog(model, includeLogByDefault = true) { showReport = false }
 }

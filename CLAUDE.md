@@ -35,6 +35,9 @@ Vespa GTS Supertech 300 HPE. Free data only (MapKit search, GraphHopper/OSRM rou
 ## Support / tips
 - Voluntary only: Settings → About → "Ủng hộ tác giả" (`App/Views/SupportView.swift`: Ko-fi link + VietQR image asset `VietQR`), `.github/FUNDING.yml`, README "Ủng hộ / Support". Never gate features, nag or pop up.
 
+## Bug reports
+- `NavCore/BugReport.swift` + `android/navcore/.../BugReport.kt`: pre-filled GitHub issue URL for `.github/ISSUE_TEMPLATE/bug_report.yml` (field ids `description`, `version`, `device`, `log`), log trimmed from the oldest lines to stay under ~7.5 KB, and `redact` (MAC addresses, pairing keys/auth answers kept in `VespaBLE.logSecrets`, names of nearby non-Vespa devices). **No GitHub token in the app** — the rider submits from their own account. UI: `App/Views/BugReportView.swift`, `ui/BugReportDialog.kt` (Bluetooth Lab + Settings → About). Anything new that logs secrets must add them to `logSecrets`.
+
 ## Language (VI / EN)
 - Every user-facing string is written inline as `L("Tiếng Việt", "English")` (`App/Localization.swift`) — no .strings tables, so add both variants for any new text. Default is Vietnamese; Settings → "Ngôn ngữ / Language" switches Tiếng Việt / English / same as iPhone, live (views re-render via Observation on `Localizer.shared.language`).
 - Text generated in NavCore takes a `Language` (`InstructionFormatter`, `DistanceFormatter`, `Cobo.dashPayload/infoText`, `MaintenanceItem.displayName/popupText`, `RoutingError.message`); the app passes `appLanguage`. TFT text stays ASCII.

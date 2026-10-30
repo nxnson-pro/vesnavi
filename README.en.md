@@ -87,7 +87,7 @@ The app isn't on the App Store; install it yourself with a free Apple ID.
 3. On the phone: **Settings → Bluetooth** → choose **"BT ROUTER"** (code **0000** if asked).
 4. Fully close the official Vespa app (if installed) → in VesNavi tap the scooter badge → **Connect**.
 
-You only pair once; after that VesNavi connects by itself when you start the scooter. For the parking spot to be saved with the phone in your pocket, allow **"Always"** location access. If something goes wrong: **My scooter → Bluetooth Lab → Export log** and attach it to your report.
+You only pair once; after that VesNavi connects by itself when you start the scooter. For the parking spot to be saved with the phone in your pocket, allow **"Always"** location access. If something goes wrong: **My scooter → Bluetooth Lab → Report a bug on GitHub** — the app opens a pre-filled issue with the log (Bluetooth addresses, pairing keys and other devices' names removed); sign in to GitHub and tap *Submit*. Or open the [bug report form](https://github.com/nxnson-pro/vesnavi/issues/new?template=bug_report.yml) directly.
 
 ## Building from source
 

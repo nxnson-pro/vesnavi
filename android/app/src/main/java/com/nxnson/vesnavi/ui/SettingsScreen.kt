@@ -47,6 +47,7 @@ fun SettingsScreen(model: AppModel, nav: Navigator) {
     val s = model.settings
     val ble = model.ble
     var showSafety by remember { mutableStateOf(false) }
+    var showReport by remember { mutableStateOf(false) }
     val context = LocalContext.current
     SubScreen(L("Cài đặt", "Settings"), onBack = nav::pop) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -135,12 +136,14 @@ fun SettingsScreen(model: AppModel, nav: Navigator) {
             ) {
                 Link("© OpenStreetMap contributors") { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(OSM_COPYRIGHT_URL))) }
                 Link(L("Lưu ý an toàn", "Safety notice")) { showSafety = true }
+                Link(L("🐞 Báo lỗi lên GitHub", "🐞 Report a bug on GitHub")) { showReport = true }
                 Link(L("☕ Ủng hộ tác giả", "☕ Support the author")) { nav.push(Screen.Support) }
                 Text("${L("Phiên bản", "Version")}: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
     if (showSafety) SafetyNoticeDialog { showSafety = false }
+    if (showReport) BugReportDialog(model) { showReport = false }
 }
 
 @Composable
