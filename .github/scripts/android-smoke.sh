@@ -49,6 +49,13 @@ PY
     sleep 2
   done
   echo "::error::Not found on screen: $1"
+  echo "On screen:"
+  python3 - "$OUT/ui.xml" <<'PY'
+import xml.etree.ElementTree as ET, sys
+for n in ET.parse(sys.argv[1]).iter('node'):
+    t = n.get('text') or n.get('content-desc')
+    if t: print('  ', repr(t), n.get('bounds'))
+PY
   shot "missing"
   return 1
 }

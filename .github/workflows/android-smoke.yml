@@ -17,6 +17,8 @@ concurrency:
 jobs:
   smoke:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
@@ -49,3 +51,16 @@ jobs:
           name: android-smoke
           path: smoke/
           retention-days: 14
+      # Screenshots also go to the throw-away branch ci-android-smoke (one commit, replaced each run),
+      # so they can be viewed without downloading the artifact.
+      - name: Publish screenshots
+        if: always()
+        run: |
+          [ -d smoke ] || exit 0
+          cd smoke
+          rm -f ui.xml
+          git init -q -b ci-android-smoke
+          git add .
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
+            commit -qm "Android smoke test ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" ci-android-smoke
