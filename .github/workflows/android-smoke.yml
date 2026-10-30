@@ -1,0 +1,72 @@
+name: Android smoke test
+
+# Installs the APK on an emulator and taps through the main screens (no phone needed).
+# Screenshots + logcat are uploaded as the "android-smoke" artifact.
+on:
+  push:
+    paths:
+      - "android/**"
+      - ".github/scripts/android-smoke.sh"
+      - ".github/workflows/android-smoke.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: android-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build APK
+        working-directory: android
+        run: ./gradlew :app:assembleRelease
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      # The ~1 GB system image download sometimes arrives corrupt; keep it between runs.
+      - name: Cache emulator system image
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/system-images/android-34/google_apis/x86_64
+          key: system-image-34-google_apis-x86_64
+      - name: Run on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/android-smoke.sh android/app/build/outputs/apk/release/app-release.apk smoke; status=$?; adb logcat -d > smoke/logcat.txt; exit $status
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-smoke
+          path: smoke/
+          retention-days: 14
+      # Screenshots also go to the throw-away branch ci-android-smoke (one commit, replaced each run),
+      # so they can be viewed without downloading the artifact.
+      - name: Publish screenshots
+        if: always()
+        run: |
+          [ -d smoke ] || exit 0
+          cd smoke
+          rm -f ui.xml
+          git init -q -b ci-android-smoke
+          git add .
+          git -c user.name="github-actions" -c user.email="github-actions@users.noreply.github.com" \
+            commit -qm "Android smoke test ${GITHUB_SHA::7}"
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" ci-android-smoke

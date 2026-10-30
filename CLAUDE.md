@@ -35,6 +35,9 @@ Vespa GTS Supertech 300 HPE. Free data only (MapKit search, GraphHopper/OSRM rou
 ## Support / tips
 - Voluntary only: Settings → About → "Ủng hộ tác giả" (`App/Views/SupportView.swift`: Ko-fi link + VietQR image asset `VietQR`), `.github/FUNDING.yml`, README "Ủng hộ / Support". Never gate features, nag or pop up.
 
+## Bug reports
+- `NavCore/BugReport.swift` + `android/navcore/.../BugReport.kt`: pre-filled GitHub issue URL for `.github/ISSUE_TEMPLATE/bug_report.yml` (field ids `description`, `version`, `device`, `log`), log trimmed from the oldest lines to stay under ~7.5 KB, and `redact` (MAC addresses, pairing keys/auth answers kept in `VespaBLE.logSecrets`, names of nearby non-Vespa devices). **No GitHub token in the app** — the rider submits from their own account. UI: `App/Views/BugReportView.swift`, `ui/BugReportDialog.kt` (Bluetooth Lab + Settings → About). Anything new that logs secrets must add them to `logSecrets`.
+
 ## Language (VI / EN)
 - Every user-facing string is written inline as `L("Tiếng Việt", "English")` (`App/Localization.swift`) — no .strings tables, so add both variants for any new text. Default is Vietnamese; Settings → "Ngôn ngữ / Language" switches Tiếng Việt / English / same as iPhone, live (views re-render via Observation on `Localizer.shared.language`).
 - Text generated in NavCore takes a `Language` (`InstructionFormatter`, `DistanceFormatter`, `Cobo.dashPayload/infoText`, `MaintenanceItem.displayName/popupText`, `RoutingError.message`); the app passes `appLanguage`. TFT text stays ASCII.
@@ -44,5 +47,11 @@ Vespa GTS Supertech 300 HPE. Free data only (MapKit search, GraphHopper/OSRM rou
 - `UITests/TourTests.swift` = scripted tours (not checks), one per GIF; the app runs with `-demoMode YES` (`#if DEBUG` only: `AppModel.startDemo`, `VespaBLE.startDemo`, `TripStore.seedDemo` — fake connected scooter, rides, places; CoreBluetooth untouched).
 - `.github/workflows/demo-gifs.yml` (manual, or on changes to the tours): build for the simulator, `simctl io recordVideo` per test via `.github/scripts/record-tour.sh`, ffmpeg → `docs/media/*.gif`, committed by the workflow. Key UI elements carry `accessibilityIdentifier`s for the tours — keep them when editing views.
 
+## Android (`android/`, experimental, never run on the scooter yet)
+- `android/navcore` = Kotlin port of `NavCore` (pure JVM, `org.json` compileOnly because Android ships it). **Keep it in step with the Swift NavCore**: protocol/logic changes go into both, with the same test vectors. Bytes are `List<Int>` (0…255), times epoch millis.
+- `android/app` = Compose port of `App/`: `AppModel`, `VespaBLE` (BluetoothGatt central for PMP3 / Cobo key link, `BluetoothGattServer` + `BluetoothLeAdvertiser` for the Cobo data link), `ScooterService` (foreground service, location|connectedDevice — Android's background mode), MapLibre + OpenFreeMap map, Photon search, same settings keys as iOS. Strings inline via `L(vi, en)`.
+- Version = `MARKETING_VERSION` from `project.yml`; CI `build-android` makes `VesNavi.apk`, attached to the same release as the IPA. Release signing from repo secrets `ANDROID_KEYSTORE_BASE64/…PASSWORD/ANDROID_KEY_ALIAS/ANDROID_KEY_PASSWORD`, else debug key.
+- No Android SDK in the cloud sandbox (Google Maven blocked): `./gradlew :navcore:test -Pvesnavi.coreOnly=true` runs locally (uses `core-only.gradle.kts`), the app only compiles in CI.
+
 ## Tests
-`swift test --package-path NavCore` (CI runs it in `swift:6.0` container).
+`swift test --package-path NavCore` (CI runs it in `swift:6.0` container); Kotlin: `cd android && ./gradlew :navcore:test -Pvesnavi.coreOnly=true`.

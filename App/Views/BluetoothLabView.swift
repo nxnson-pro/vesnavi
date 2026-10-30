@@ -12,6 +12,7 @@ struct BluetoothLabView: View {
     @State private var rawWithHeader = false
     @State private var popupLine1 = "Xin chao"
     @State private var popupLine2 = "VesNavi"
+    @State private var showReport = false
 
     private var ble: VespaBLE { model.vespa }
 
@@ -122,6 +123,10 @@ struct BluetoothLabView: View {
 
             Section {
                 // Built only when shared — building it on every redraw is slow with a long log.
+                Button { showReport = true } label: {
+                    Label(L("Báo lỗi lên GitHub (kèm log)", "Report a bug on GitHub (with log)"), systemImage: "ladybug")
+                }
+                .sheet(isPresented: $showReport) { BugReportView(includeLog: true) }
                 ShareLink(item: LogExport(ble: ble), preview: SharePreview("vespa-bluetooth-log.txt")) {
                     Label(L("Xuất log (gửi cho dev)", "Export log (send to dev)"), systemImage: "square.and.arrow.up")
                 }

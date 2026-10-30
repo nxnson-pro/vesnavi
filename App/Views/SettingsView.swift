@@ -110,7 +110,7 @@ struct SettingsView: View {
                     Text(L("Chạy thử", "Test run"))
                 }
 
-                AboutSection(version: appVersion)
+                AboutSection(version: AppInfo.version)
             }
             .navigationTitle(L("Cài đặt", "Settings"))
             .navigationBarTitleDisplayMode(.inline)
@@ -122,14 +122,6 @@ struct SettingsView: View {
             }
         }
         .tint(Theme.accent)
-    }
-
-    /// "1.0.0 (25)": marketing version + CI run number.
-    private var appVersion: String {
-        let info = Bundle.main.infoDictionary
-        let version = info?["CFBundleShortVersionString"] as? String ?? "-"
-        let build = info?["CFBundleVersion"] as? String ?? "-"
-        return "\(version) (\(build))"
     }
 
     private var languageBinding: Binding<AppLanguage> {

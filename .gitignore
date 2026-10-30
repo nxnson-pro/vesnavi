@@ -19,3 +19,11 @@ Package.resolved
 *.apk
 *.xapk
 *.apk.part*
+
+# Android
+android/.gradle/
+android/.kotlin/
+android/local.properties
+android/keystore.properties
+*.jks
+*.keystore

@@ -156,6 +156,8 @@ final class VespaBLE: NSObject, DashboardSink {
     @ObservationIgnored private var popupTicksLeft = 0
     @ObservationIgnored private var lastWarning: [Warning: Date] = [:]
     @ObservationIgnored private var lowChargeSince: Date?
+    /// Keys and auth answers seen this session, removed from logs posted publicly.
+    @ObservationIgnored private var logSecrets: Set<[UInt8]> = []
 
     private enum Warning { case coolantHot, notCharging, batteryLow }
 
@@ -291,7 +293,9 @@ final class VespaBLE: NSObject, DashboardSink {
 
     func clearLog() { log.removeAll() }
 
-    func exportLog() -> String {
+    /// `redacted`: for a public GitHub issue — no Bluetooth addresses, pairing keys, auth answers or
+    /// names of other people's devices.
+    func exportLog(redacted: Bool = false) -> String {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         var lines = ["VesNavi — Bluetooth log",
@@ -301,7 +305,10 @@ final class VespaBLE: NSObject, DashboardSink {
                      "Pairing: id=\(pairing.map { Hex.encode($0.deviceID, separator: "") } ?? "-") key=\(pairing?.key.map { Hex.encode($0, separator: "") } ?? "-")",
                      "", "GATT:"] + gattTable + ["", "LOG:"]
         lines += log.map { "\(f.string(from: $0.time))  \($0.text)" }
-        return lines.joined(separator: "\n")
+        let text = lines.joined(separator: "\n")
+        guard redacted else { return text }
+        let strangers = discovered.filter { !$0.isLikelyVespa && !["(không tên)", "(no name)"].contains($0.name) }.map(\.name)
+        return BugReport.redact(text, secrets: logSecrets.flatMap { BugReport.hexVariants($0) } + strangers)
     }
 
     // MARK: - DashboardSink
@@ -360,6 +367,7 @@ final class VespaBLE: NSObject, DashboardSink {
         switch event {
         case .pairingChanged(let p):
             pairing = p
+            if let key = p.key { logSecrets.insert(key) }
             if let id = peripheral?.identifier, let data = try? JSONEncoder().encode(p) {
                 UserDefaults.standard.set(data, forKey: Keys.pairing(id))
             }
@@ -452,6 +460,7 @@ final class VespaBLE: NSObject, DashboardSink {
             p.writeValue(Data(reply), for: c, type: type)
         case .answer(let a):
             coboAnswer = a
+            logSecrets.insert(a)
             append(L("🔑 Link lấy khoá: nhận câu trả lời \(Hex.encode(a))", "🔑 Key link: answer \(Hex.encode(a))"))
             beginServerPhase()
         case .ignored(let b):
@@ -828,6 +837,7 @@ extension VespaBLE: CBPeripheralDelegate {
             guard characteristic.uuid == CBUUID(string: PMP3.notifyCharacteristicUUID) else { return }
             let stored = UserDefaults.standard.data(forKey: Keys.pairing(id)).flatMap { try? JSONDecoder().decode(PMP3Pairing.self, from: $0) }
             pairing = stored
+            if let key = stored?.key { logSecrets.insert(key) }
             let s = PMP3Session(pairing: stored, phoneName: UIDevice.current.name)
             session = s
             append(L("Notify 2A5A bật — MTU ghi tối đa \(peripheral.maximumWriteValueLength(for: .withResponse)) byte — bắt đầu bắt tay", "Notify 2A5A on — max write \(peripheral.maximumWriteValueLength(for: .withResponse)) bytes — starting handshake"))

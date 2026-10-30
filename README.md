@@ -1,10 +1,10 @@
-# VesNavi (iOS)
+# VesNavi (iOS + Android)
 
 **Tiếng Việt** · [English](README.en.md)
 
 App iOS dẫn đường **miễn phí**, hiển thị hướng rẽ lên màn hình TFT của **Vespa GTS Supertech 300 HPE** — thay thế app Vespa MIA (HERE Maps trả phí). Kèm thông số xe trực tiếp, ghi hành trình, theo dõi xăng và nhắc bảo dưỡng. Tiếng Việt / English.
 
-**Phiên bản hiện tại: 1.0.7** — xem [CHANGELOG.md](CHANGELOG.md). [![Ủng hộ trên Ko-fi](https://img.shields.io/badge/Ko--fi-%E1%BB%A6ng%20h%E1%BB%99-FF5E5B?logo=kofi&logoColor=white)](#ủng-hộ)
+**Phiên bản hiện tại: 1.0.8** — xem [CHANGELOG.md](CHANGELOG.md). [![Ủng hộ trên Ko-fi](https://img.shields.io/badge/Ko--fi-%E1%BB%A6ng%20h%E1%BB%99-FF5E5B?logo=kofi&logoColor=white)](#ủng-hộ)
 
 | Dẫn đường (mô phỏng) | Xe của tôi | Hành trình | Tiếng Việt / English |
 |:---:|:---:|:---:|:---:|
@@ -60,19 +60,30 @@ App iOS dẫn đường **miễn phí**, hiển thị hướng rẽ lên màn h�
 3. Mở nguồn VesNavi → **Get**. Bản mới sẽ hiện nút **Update** trong SideStore.
 4. Bật làm mới nền cho SideStore (hoặc tạo Phím tắt tự động "Refresh All Apps" hằng ngày) để không bao giờ hết hạn 7 ngày.
 
+## Android (thử nghiệm)
+
+1. Vào **Releases** → bản mới nhất → tải **`VesNavi.apk`** về điện thoại Android (8.0 trở lên).
+2. Mở file → cho phép **cài ứng dụng không rõ nguồn** khi được hỏi → Cài đặt.
+3. Cho phép quyền **Vị trí**, **Thông báo** và (khi bấm Kết nối xe) **Thiết bị ở gần / Bluetooth**.
+
+- Cùng tính năng với bản iOS; bản đồ **OpenFreeMap** (dữ liệu OpenStreetMap), tìm địa chỉ bằng **Photon** — đều miễn phí, không cần key.
+- Khi đang dẫn đường hoặc kết nối xe, app chạy nền với thông báo **"VesNavi"** (bấm **Dừng** để tắt hẳn).
+- ⚠️ **Chưa thử trên xe thật.** Xe GTS Supertech (PMP2) cần điện thoại hỗ trợ *phát quảng bá BLE* (đa số máy từ 2018). Không kết nối được: **Xe của tôi → Bluetooth Lab → Xuất log** và gửi cho dev.
+- Nếu Release chưa có khoá ký cố định, bản mới phải **gỡ bản cũ rồi cài lại** (mất dữ liệu trong app).
+
 ## Kết nối xe lần đầu
 
 1. Bật chìa khoá để màn hình xe sáng.
 2. Trên màn hình xe: **Settings → Configuration → Pairing configuration**.
-3. Trên iPhone: **Cài đặt → Bluetooth** → chọn **"BT ROUTER"** (mã **0000** nếu được hỏi).
+3. Trên điện thoại: **Cài đặt → Bluetooth** → chọn **"BT ROUTER"** (mã **0000** nếu được hỏi).
 4. Đóng hẳn app Vespa chính hãng (nếu có) → trong VesNavi chạm biểu tượng xe → **Kết nối**.
 
-Chỉ cần ghép đôi một lần, những lần sau app tự kết nối khi bật xe. Có lỗi: **Xe của tôi → Bluetooth Lab → Xuất log** và gửi cho dev.
+Chỉ cần ghép đôi một lần, những lần sau app tự kết nối khi bật xe. Có lỗi: **Xe của tôi → Bluetooth Lab → Báo lỗi lên GitHub** — app mở sẵn form issue kèm log (đã ẩn địa chỉ Bluetooth, khoá ghép đôi, tên thiết bị khác), bạn chỉ cần đăng nhập GitHub và bấm *Submit*. Hoặc mở [form báo lỗi](https://github.com/nxnson-pro/vesnavi/issues/new?template=bug_report.yml) trực tiếp.
 
 ## Phát hành phiên bản mới
 
 1. Sửa `MARKETING_VERSION` trong `project.yml` và ghi chú trong `CHANGELOG.md`.
-2. Push lên GitHub → CI thấy version mới thì tự tạo **Release `vX.Y.Z`** kèm `VespaNav.ipa` và nguồn SideStore `apps.json` (không hết hạn; mỗi version chỉ tạo 1 lần). Số build = số lần chạy CI, hiện ở Cài đặt → Phiên bản, ví dụ `1.0.0 (27)`.
+2. Push lên GitHub → CI thấy version mới thì tự tạo **Release `vX.Y.Z`** kèm `VespaNav.ipa`, `VesNavi.apk` (Android dùng chung version) và nguồn SideStore `apps.json` (không hết hạn; mỗi version chỉ tạo 1 lần). Số build = số lần chạy CI, hiện ở Cài đặt → Phiên bản, ví dụ `1.0.0 (27)`.
 
 ## GIF giới thiệu
 
@@ -106,6 +117,8 @@ App/                SwiftUI app: AppModel, VespaBLE (Bluetooth), LocationService
 UITests/            Kịch bản quay GIF giới thiệu (UI test, chế độ demo)
 docs/               Ghi chú giao thức (pmp3, pmp2-cobo), hướng dẫn bắt log Bluetooth, media/ (GIF)
 project.yml         XcodeGen — .xcodeproj được sinh trong CI, không commit
-.github/workflows/  CI: test NavCore (Linux) → build .ipa chưa ký (macOS) → Release khi đổi version;
+android/navcore/    Bản Kotlin của NavCore (JVM, cùng bộ test) — ./gradlew :navcore:test -Pvesnavi.coreOnly=true
+android/app/        App Android: Jetpack Compose, MapLibre, BLE (central + GATT server), dịch vụ chạy nền
+.github/workflows/  CI: test NavCore + navcore Kotlin (Linux) → build .apk + .ipa chưa ký → Release khi đổi version;
                     Demo GIFs: quay máy ảo → docs/media/
 ```
