@@ -73,6 +73,32 @@ fun BluetoothLabScreen(model: AppModel, nav: Navigator, requestBluetooth: () -> 
                 }
             }
             item {
+                SectionLabel(L("Xe PMP2 (GTS Supertech) — Bluetooth cổ điển", "PMP2 scooters (GTS Supertech) — classic Bluetooth"))
+                FloatingCard(Modifier.fillMaxWidth()) {
+                    val router = ble.bondedRouter()
+                    Text(
+                        if (router != null) L("Đã ghép đôi: ${router.name ?: "BT ROUTER"}", "Paired: ${router.name ?: "BT ROUTER"}")
+                        else L("Chưa thấy \"BT ROUTER\" trong thiết bị đã ghép đôi của điện thoại", "No \"BT ROUTER\" among the phone's paired devices"),
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(L("Kết nối xe PMP2 qua SPP", "Connect PMP2 scooters over SPP"), Modifier.weight(1f))
+                        androidx.compose.material3.Switch(checked = model.settings.pmp2OverSpp, onCheckedChange = { model.settings.pmp2OverSpp = it })
+                    }
+                    if (router != null) {
+                        Button(onClick = { ble.connectSpp(router) }) { Text(L("Kết nối SPP", "Connect over SPP")) }
+                    }
+                }
+                Text(
+                    L(
+                        "Trên Android, xe PMP2 nói chuyện qua Bluetooth cổ điển (SPP): ghép đôi \"BT ROUTER\" một lần trong Cài đặt → Bluetooth (bật chế độ ghép đôi trên màn hình xe: Settings → Configuration → Pairing configuration, mã 0000), rồi bấm Kết nối. Tắt công tắc để thử đường BLE hai link như iPhone.",
+                        "On Android, PMP2 scooters talk over classic Bluetooth (SPP): pair \"BT ROUTER\" once in Settings → Bluetooth (put the scooter display in pairing mode: Settings → Configuration → Pairing configuration, code 0000), then tap Connect. Turn the switch off to try the iPhone-style two-link BLE path.",
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            item {
                 SectionLabel(L("Tìm xe", "Find the scooter"))
                 FloatingCard(Modifier.fillMaxWidth()) {
                     if (ble.state == com.nxnson.vesnavi.VespaBLE.LinkState.SCANNING) {

@@ -47,7 +47,8 @@ object Cobo {
         return listOf(k0, k1, k2, k3) + keyReplyTail
     }
 
-    private const val MAX_FRAME_DATA = 127
+    /** Most packet bytes one frame carries (after its header byte). */
+    const val MAX_FRAME_DATA = 127
 
     /**
      * DQ command packet (`44 51 00 cmd len payload checksum`) split into Cobo frames:

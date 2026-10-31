@@ -29,7 +29,7 @@ Bên trong `C0` là gói lệnh DQ: `44 51 00 cmd len payload checksum`, với c
 
 ## Xác thực
 
-- **Classic (SPP), để tham khảo, chưa kiểm chứng:** xe gửi 16 byte `FF 00 00 00 00 00 c0 c1 c2 c3 …`, điện thoại trả `FF 00×5 k0 k1 k2 k3 00×5 cs`.
+- **Classic (SPP) — đường của Android** (iPhone không mở được SPP nên dùng BLE). Một app Android khác dùng được với xe PMP2 cũng đi đường này (RFCOMM SPP `00001101`, không dùng GATT server), xem mục "Khởi tạo trên Classic/SPP". Xe gửi 16 byte `FF 00 00 00 00 00 c0 c1 c2 c3 …`, điện thoại trả `FF 00×5 k0 k1 k2 k3 00×5 cs`.
   - `k0 = c1 ^ 0x46`
   - `k1 = (c0 ^ c1) & 0x45`
   - `k2 = ~((c3 ^ c2) & 0x44)`
@@ -85,14 +85,18 @@ Sau khi sẵn sàng:
 - Gói `0x28` có khung 128 byte → cần `maximumUpdateValueLength ≥ 128`.
 - Không tự kết nối lại link lấy khoá khi đang chờ / đang chạy link dữ liệu; link dữ liệu rớt → xoá câu trả lời cũ, làm lại từ link lấy khoá.
 
-## Khởi tạo trên Classic/SPP (để tham khảo, chưa kiểm chứng)
+## Khởi tạo trên Classic/SPP (Android)
+
+Gói `0x70` và payload `0x23` bên dưới trùng byte-for-byte với một app Android khác đang dùng được với xe PMP2 (đối chiếu tĩnh, mục đích tương thích); bản Android của VesNavi chưa thử trên xe. Cài đặt: `android/navcore/.../CoboSpp.kt` (`CoboSppSession`, `CoboFrameReader`), socket ở `android/app/.../CoboSppLink.kt`. Cần ghép đôi "BT ROUTER" trong Cài đặt Bluetooth của điện thoại trước.
 
 1. Điện thoại gửi lệnh `0x70` + `00 01 01 03 02 00 00 01 01 01 04 02 00 FF`.
 2. Xe trả `0x70` → điện thoại gửi `0x01` (rỗng).
 3. Xe trả `0x02` → điện thoại gửi `0x06` (rỗng).
 4. Xe trả `0x11` → điện thoại gửi `0x23` + `01 00 02 00 03 00` → **sẵn sàng**.
 
-Trên SPP mỗi khung nhận được đều trả `F0 n 00`. Sau đó gửi gói dẫn đường `C6 …` khoảng mỗi giây.
+Trên SPP mỗi khung nhận được đều trả `F0 n 00`. Sau đó gửi gói dẫn đường `C6 …` khoảng mỗi giây (VesNavi gửi mỗi 0,5 s như trên BLE).
+
+Suy luận, chưa kiểm chứng: sau `0x23` VesNavi gửi thêm gói đăng ký `0x28` (như trên BLE) để có dữ liệu động cơ. Nếu xe ngắt link trong 15 s sau đó, app tự thôi gửi `0x28` ở các lần sau (chỉ dẫn đường). Độ dài khung `C0 80` trên luồng SPP lấy theo danh sách `0x28` (61 byte dữ liệu); byte lạ bị bỏ qua tới khi gặp lại đầu khung.
 
 ## Dữ liệu xe (`C0 80 …`) — thông số động cơ
 
