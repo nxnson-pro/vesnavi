@@ -1,0 +1,23 @@
+name: Remove old releases
+
+# One-off: the public beta restarts numbering at 0.1.0, so the 1.0.x test releases and their tags go.
+# Runs when this file changes; delete the file afterwards.
+on:
+  push:
+    paths:
+      - ".github/workflows/cleanup-releases.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete v1.0.6 – v1.0.9
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for tag in v1.0.6 v1.0.7 v1.0.8 v1.0.9; do
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || echo "$tag: nothing to delete"
+          done
