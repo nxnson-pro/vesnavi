@@ -1,0 +1,28 @@
+name: Release notes
+
+# Keeps the current version's GitHub release text in step with CHANGELOG.md (English first, then
+# Vietnamese). New releases get their notes when CI publishes them; this covers later edits.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "CHANGELOG.md"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update the release of the current version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's/.*MARKETING_VERSION: *"\(.*\)".*/\1/p' project.yml)
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "v$version" --repo "$GITHUB_REPOSITORY" --notes-file CHANGELOG.md
+          else
+            echo "v$version not released yet — CI publishes it with these notes."
+          fi
