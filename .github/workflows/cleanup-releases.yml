@@ -14,10 +14,19 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: Delete v1.0.6 – v1.0.9
+      - name: Delete v1.0.6 – v1.0.9 once v0.1.0 is out
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # CI publishes v0.1.0 in parallel; keep the old releases unless the new one exists.
+          for _ in $(seq 1 50); do
+            gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 && break
+            sleep 60
+          done
+          if ! gh release view v0.1.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::v0.1.0 was not published — old releases kept."
+            exit 1
+          fi
           for tag in v1.0.6 v1.0.7 v1.0.8 v1.0.9; do
             gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes || echo "$tag: nothing to delete"
           done
