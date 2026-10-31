@@ -83,7 +83,9 @@ check map
 shot map
 
 tap "Đi đâu" || exit 1
-sleep 2
+sleep 3
+tap "Địa chỉ" || exit 1
+sleep 1
 adb shell input text "Cho%sBen%sThanh"
 sleep 8
 check search
