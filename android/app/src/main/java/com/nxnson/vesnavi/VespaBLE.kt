@@ -89,7 +89,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             }
     }
 
-    enum class LinkProtocol(val title: String) { PMP3("PMP3 (0x1815)"), COBO("PMP2 over BLE (Cobo)") }
+    enum class LinkProtocol(val title: String) { PMP3("PMP3 (0x1815)"), COBO("PMP2 over BLE (Cobo)"), SPP("PMP2 over classic Bluetooth (SPP)") }
 
     data class Discovered(val address: String, val name: String, val rssi: Int, val services: List<String>, val isLikelyVespa: Boolean)
 
@@ -158,6 +158,13 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
 
     // Server side (Cobo data link).
     private var server: BluetoothGattServer? = null
+    // Classic SPP (PMP2 on Android).
+    private var spp: CoboSppLink? = null
+    private var sppDevice: BluetoothDevice? = null
+    private var sppStream: Job? = null
+    private var sppRetry: Job? = null
+    private var sppFailures = 0
+    private var sppReadyAt = 0L
     private var indicateChar: BluetoothGattCharacteristic? = null
     private var coboServiceAdded = false
     private var coboAnswer: Bytes? = null
@@ -269,6 +276,11 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         ensureStarted()
         userDisconnected = false
         if (isConnected || state == LinkState.CONNECTING || !hasPermissions()) return
+        val router = if (settings.pmp2OverSpp) bondedRouter() else null
+        if (router != null) {
+            connectSpp(router)
+            return
+        }
         val remembered = settings.lastScooterAddress
         if (remembered != null && adapter?.isEnabled == true) {
             connect(remembered)
@@ -310,6 +322,8 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     fun disconnect() {
         userDisconnected = true
         autoConnectOnDiscovery = false
+        sppRetry?.cancel()
+        stopSpp()
         closeGatt()
         endServerLink(reconnect = false)
         changeState(LinkState.IDLE)
@@ -327,6 +341,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     /** `payload` is the bare 0xC6 dash packet; PMP3 adds its 55 01 05 header, Cobo indicates it as-is. */
     fun sendDash(payload: Bytes) {
         lastDash = payload
+        if (spp != null) return // the SPP stream sends it on its next tick
         if (linkProtocol == LinkProtocol.COBO && serverSession == null) return // the stream picks it up once ready
         if (serverSession != null) {
             // A newer dash packet replaces any still queued.
@@ -340,14 +355,24 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
 
     /** Lab test arrow, encoded the way the connected scooter expects. */
     fun sendTestDash(icon: Int, distance: Int, road: String) {
-        if (serverSession != null || linkProtocol == LinkProtocol.COBO) {
+        if (serverSession != null || spp != null || linkProtocol == LinkProtocol.COBO) {
             sendDash(Cobo.dashPayload(icon, distance, distance + 1500, 5, road))
         } else {
             sendDash(PMP3.dashPacket(icon, distance, distance + 1500, 5, road, dashOptions, includeHeader = false))
         }
     }
 
-    fun sendRaw(bytes: Bytes) = if (serverSession != null) indicate(bytes) else enqueue(bytes)
+    fun sendRaw(bytes: Bytes) {
+        val link = spp
+        when {
+            link != null -> {
+                append("TX ${Hex.encode(bytes)}")
+                link.write(bytes)
+            }
+            serverSession != null -> indicate(bytes)
+            else -> enqueue(bytes)
+        }
+    }
 
     fun clearLog() = log.clear()
 
@@ -367,6 +392,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             "VesNavi — Bluetooth log",
             "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · ${Build.MANUFACTURER} ${Build.MODEL}",
             "Scooter: ${connectedName ?: "-"} · state: $state · protocol: ${linkProtocol?.title ?: "-"} · fw: ${firmwareInfo ?: "-"}",
+            "SPP: ${spp?.stage ?: "-"} · engine data: ${settings.sppEngineData}",
             "Cobo: answer=${coboAnswer?.let { Hex.encode(it, "") } ?: "-"} · data link: ${serverSession?.stage ?: "-"}",
             "Pairing: id=${pairing?.deviceID?.let { Hex.encode(it, "") } ?: "-"} key=${pairing?.key?.let { Hex.encode(it, "") } ?: "-"}",
             "", "GATT:",
@@ -388,7 +414,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         lastMessage = if (isReady) text else L("$text (xe chưa kết nối)", "$text (scooter not connected)")
         if (!isReady) return
         sendDash(
-            if (serverSession != null) Cobo.dashPayload(state, appLanguage)
+            if (serverSession != null || spp != null) Cobo.dashPayload(state, appLanguage)
             else PMP3.dashPacket(state, dashOptions, includeHeader = false),
         )
     }
@@ -396,13 +422,13 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     fun clear() {
         lastMessage = null
         // Cobo: tell the TFT the route ended (06 03 00) once, then fall back to the idle dash.
-        if (lastDash != null && serverSession != null) stopDashPending = true
+        if (lastDash != null && (serverSession != null || spp != null)) stopDashPending = true
         lastDash = null
     }
 
     /** Pop-up on the TFT (two lines, ASCII, ≤ 20 chars each). Cobo data link only. */
     fun showPopup(line1: String, line2: String) {
-        if (serverSession?.stage != CoboServerSession.Stage.READY) {
+        if (serverSession?.stage != CoboServerSession.Stage.READY && spp?.isReady != true) {
             append(L("⚠️ Popup chỉ gửi được khi xe ✅ Sẵn sàng", "⚠️ Pop-ups need the scooter to be ✅ Ready"))
             return
         }
@@ -524,6 +550,10 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
 
     private fun reconnectIfRemembered(force: Boolean = false) {
         val address = settings.lastScooterAddress ?: return
+        if (settings.pmp2OverSpp && spp == null && bondedRouter() != null) {
+            if ((settings.autoReconnect || force) && !userDisconnected) scheduleSppConnect(0)
+            return
+        }
         if (!(settings.autoReconnect || force) || userDisconnected || awaitingScooter || serverSession != null) return
         if (!hasPermissions() || adapter?.isEnabled != true || gatt != null) return
         append(L("Tự kết nối lại (chờ xe bật)", "Auto-reconnect (waiting for the scooter)"))
@@ -1146,6 +1176,135 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         if (wasCobo && state in setOf(LinkState.WAITING_FOR_SCOOTER, LinkState.HANDSHAKING, LinkState.READY)) changeState(LinkState.IDLE)
         // Part of the handshake itself, so retry even when auto-reconnect is off.
         if (reconnect) reconnectIfRemembered(force = true)
+    }
+
+    // PMP2 over classic Bluetooth SPP — how Android phones talk to the BT-ROUTER.
+
+    /** The scooter as paired in Android's Bluetooth settings ("BT ROUTER"), if it is. */
+    fun bondedRouter(): BluetoothDevice? {
+        if (!hasPermissions()) return null
+        return runCatching {
+            adapter?.bondedDevices?.firstOrNull { d -> d.name?.uppercase()?.replace('-', ' ')?.contains("BT ROUTER") == true }
+        }.getOrNull()
+    }
+
+    fun connectSpp(device: BluetoothDevice) {
+        val a = adapter ?: return
+        if (!hasPermissions() || a.isEnabled != true) return
+        stopScan()
+        sppRetry?.cancel()
+        stopSpp()
+        closeGatt()
+        endServerLink(reconnect = false)
+        userDisconnected = false
+        linkProtocol = LinkProtocol.SPP
+        sppDevice = device
+        connectedName = runCatching { device.name }.getOrNull()
+        changeState(LinkState.CONNECTING)
+        append(L("Kết nối SPP (Bluetooth cổ điển) tới ${connectedName ?: "xe"}", "SPP (classic Bluetooth) connect to ${connectedName ?: "the scooter"}"))
+        spp = CoboSppLink(settings.sppEngineData, sppListener).also { it.connect(a, device) }
+    }
+
+    private val sppListener = object : CoboSppLink.Listener {
+        override fun sppLog(text: String) = append(text)
+
+        override fun sppConnected() {
+            sppDevice?.address?.let { settings.lastScooterAddress = it }
+            changeState(LinkState.HANDSHAKING)
+            append(L("Đã mở kênh SPP — chờ xe gửi thử thách", "SPP channel open — waiting for the challenge"))
+        }
+
+        override fun sppReady() {
+            sppFailures = 0
+            sppReadyAt = System.currentTimeMillis()
+            peakRPM = 0
+            changeState(LinkState.READY)
+            append(L("✅ Màn hình sẵn sàng nhận dẫn đường (PMP2 qua SPP)", "✅ TFT ready for navigation (PMP2 over SPP)"))
+            startSppStream()
+        }
+
+        override fun sppCanData(frame: Bytes) {
+            updateTelemetry(frame)
+            val now = System.currentTimeMillis()
+            if (now - lastCanLog > 5_000) {
+                lastCanLog = now
+                append(L("Xe → dữ liệu CAN ${Hex.encode(frame)} (chỉ ghi mỗi 5 s)", "Scooter → CAN data ${Hex.encode(frame)} (logged every 5 s)"))
+            }
+        }
+
+        override fun sppClosed(reason: String, wasReady: Boolean) {
+            append(L("Link SPP đóng: $reason", "SPP link closed: $reason"))
+            if (wasReady && settings.sppEngineData && System.currentTimeMillis() - sppReadyAt < 15_000) {
+                // Unverified on SPP: if the scooter drops the link right after the 0x28 subscription, stop sending it.
+                settings.sppEngineData = false
+                append(L("⚠️ Xe ngắt ngay sau khi đăng ký dữ liệu động cơ — lần sau sẽ không đăng ký (chỉ dẫn đường)", "⚠️ The scooter dropped the link right after the engine-data subscription — not subscribing next time (navigation only)"))
+            }
+            stopSpp()
+            if (!wasReady) sppFailures++
+            if (!userDisconnected && settings.autoReconnect) {
+                // Back off while the scooter is off: 5 s, 10 s, 20 s … up to a minute.
+                scheduleSppConnect(minOf(60_000L, 5_000L shl minOf(sppFailures, 4)))
+            }
+        }
+    }
+
+    private fun scheduleSppConnect(delayMs: Long) {
+        sppRetry?.cancel()
+        sppRetry = scope.launch {
+            delay(delayMs)
+            if (userDisconnected || spp != null) return@launch
+            bondedRouter()?.let(::connectSpp)
+        }
+    }
+
+    /** Dash every ~0.5 s like the BLE data link; the pop-up replaces it for a few packets. */
+    private fun startSppStream() {
+        sppStream?.cancel()
+        sppStream = scope.launch {
+            while (isActive) {
+                val link = spp ?: return@launch
+                if (!link.isReady) return@launch
+                val p = popup
+                val packet = when {
+                    p != null && popupTicksLeft > 0 -> {
+                        popupTicksLeft--
+                        if (popupTicksLeft == 0) popup = null
+                        p
+                    }
+                    stopDashPending -> {
+                        stopDashPending = false
+                        Cobo.stopDash
+                    }
+                    else -> lastDash ?: idleDashPacket()
+                }
+                if (packet != lastLoggedDash) {
+                    lastLoggedDash = packet
+                    append("TX dash ${Hex.encode(packet)}")
+                }
+                link.write(packet)
+                delay(500)
+            }
+        }
+    }
+
+    /** Ends the SPP link without reconnecting; engine data and trips see the link end. */
+    private fun stopSpp() {
+        val link = spp ?: return
+        link.close()
+        spp = null
+        sppStream?.cancel()
+        sppStream = null
+        if (telemetry != null) onDataLinkEnded?.invoke()
+        telemetry = null
+        latestTelemetry = null
+        telemetryAt = null
+        popup = null
+        popupTicksLeft = 0
+        stopDashPending = false
+        lowChargeSince = null
+        lastLoggedDash = null
+        connectedName = null
+        if (state in setOf(LinkState.CONNECTING, LinkState.HANDSHAKING, LinkState.READY)) changeState(LinkState.IDLE)
     }
 
     // Last in the class: the callbacks above must exist before Bluetooth is touched.

@@ -4,7 +4,7 @@
 
 App iOS dẫn đường **miễn phí**, hiển thị hướng rẽ lên màn hình TFT của **Vespa GTS Supertech 300 HPE** — thay thế app Vespa MIA (HERE Maps trả phí). Kèm thông số xe trực tiếp, ghi hành trình, theo dõi xăng và nhắc bảo dưỡng. Tiếng Việt / English.
 
-**Phiên bản hiện tại: 1.0.8** — xem [CHANGELOG.md](CHANGELOG.md). [![Ủng hộ trên Ko-fi](https://img.shields.io/badge/Ko--fi-%E1%BB%A6ng%20h%E1%BB%99-FF5E5B?logo=kofi&logoColor=white)](#ủng-hộ)
+**Phiên bản hiện tại: 1.0.9** — xem [CHANGELOG.md](CHANGELOG.md). [![Ủng hộ trên Ko-fi](https://img.shields.io/badge/Ko--fi-%E1%BB%A6ng%20h%E1%BB%99-FF5E5B?logo=kofi&logoColor=white)](#ủng-hộ)
 
 | Dẫn đường (mô phỏng) | Xe của tôi | Hành trình | Tiếng Việt / English |
 |:---:|:---:|:---:|:---:|

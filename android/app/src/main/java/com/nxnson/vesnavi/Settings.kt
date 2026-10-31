@@ -80,6 +80,17 @@ class Settings(context: Context) {
         get() = idleTextState.value
         set(v) { idleTextState.value = v; prefs.edit().putString("vespaIdleDisplay", if (v) "textOnNavScreen" else "off").apply() }
 
+    private val pmp2OverSppState = bool("vespaPmp2OverSpp", true)
+    /** PMP2 scooters: classic Bluetooth SPP (Android's path) instead of the two BLE links the iPhone needs. */
+    var pmp2OverSpp: Boolean
+        get() = pmp2OverSppState.value
+        set(v) { pmp2OverSppState.value = v; prefs.edit().putBoolean("vespaPmp2OverSpp", v).apply() }
+
+    /** Subscribe to engine data (0x28) on SPP; turned off by itself if the scooter drops the link right after it. */
+    var sppEngineData: Boolean
+        get() = prefs.getBoolean("vespaSppEngineData", true)
+        set(v) = prefs.edit().putBoolean("vespaSppEngineData", v).apply()
+
     private val warningsState = bool("vespaWarnings", true)
     var warningsEnabled: Boolean
         get() = warningsState.value

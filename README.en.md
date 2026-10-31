@@ -4,7 +4,7 @@
 
 A **free** iPhone navigation app that shows turn-by-turn directions on the TFT dashboard of the **Vespa GTS Supertech 300 HPE**, replacing the official app's paid navigation. It also shows live engine data, records your rides, tracks fuel and reminds you of service. Vietnamese / English.
 
-**Current version: 1.0.8** — see [CHANGELOG.md](CHANGELOG.md) (in Vietnamese). [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/nxnson)
+**Current version: 1.0.9** — see [CHANGELOG.md](CHANGELOG.md) (in Vietnamese). [![Support on Ko-fi](https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=kofi&logoColor=white)](https://ko-fi.com/nxnson)
 
 | Navigation (simulated) | My scooter | Trips | Vietnamese / English |
 |:---:|:---:|:---:|:---:|

@@ -1,3 +1,8 @@
+# VesNavi 1.0.9
+
+- **Android — xe PMP2 (GTS Supertech) kết nối qua Bluetooth cổ điển (SPP)**, cách các app Android khác đang dùng được với xe này, thay cho đường BLE hai chiều mà iPhone buộc phải dùng. Chuẩn bị một lần: bật chế độ ghép đôi trên màn hình xe (Settings → Configuration → Pairing configuration), rồi Cài đặt → Bluetooth của điện thoại → ghép đôi "BT ROUTER" (mã 0000). Sau đó bấm **Kết nối xe** trong VesNavi; những lần sau app tự kết nối khi bật xe. Đường BLE cũ vẫn còn trong Bluetooth Lab để thử. ⚠️ Chưa thử trên xe thật — có lỗi hãy dùng **Báo lỗi lên GitHub** trong Bluetooth Lab.
+- iOS: không đổi.
+
 # VesNavi 1.0.8
 
 - **Bản Android (thử nghiệm)**: tải `VesNavi.apk` ở release này (Android 8.0 trở lên). Đủ tính năng như bản iOS — dẫn đường lên màn hình xe, thông số xe, hành trình & xăng, bảo dưỡng, địa điểm, chỗ đỗ, Tiếng Việt / English. Bản đồ OpenFreeMap và tìm địa chỉ Photon (dữ liệu OpenStreetMap, miễn phí). ⚠️ Chưa thử trên xe thật; có lỗi hãy dùng nút báo lỗi bên dưới. Bản này ký bằng khoá tạm: lần cập nhật sau có thể phải gỡ cài đặt rồi cài lại.
