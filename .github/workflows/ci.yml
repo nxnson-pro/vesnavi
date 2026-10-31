@@ -74,6 +74,12 @@ jobs:
         run: |
           ./gradlew :app:assembleRelease
           cp app/build/outputs/apk/release/app-release.apk VesNavi.apk
+      # Public certificate fingerprint: shows whether the release key (repo secrets) signed the APK.
+      - name: Signing certificate
+        run: |
+          apksigner=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$apksigner" verify --print-certs VesNavi.apk | grep -E "certificate DN|SHA-256"
+          ls -la VesNavi.apk
       - uses: actions/upload-artifact@v4
         with:
           name: VesNavi-apk
