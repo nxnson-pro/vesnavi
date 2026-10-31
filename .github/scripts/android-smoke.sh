@@ -35,7 +35,11 @@ tap() {
     xy=$(python3 - "$OUT/ui.xml" "$1" <<'PY'
 import re, sys, xml.etree.ElementTree as ET
 want = sys.argv[2]
-for n in ET.parse(sys.argv[1]).iter('node'):
+nodes = list(ET.parse(sys.argv[1]).iter('node'))
+# A system "<app> isn't responding" dialog (the emulator's launcher, at boot) covers the screen: tap Wait.
+if any("isn't responding" in (n.get('text') or '') for n in nodes):
+    want = 'Wait'
+for n in nodes:
     if want in (n.get('text') or '') or want in (n.get('content-desc') or ''):
         x1, y1, x2, y2 = map(int, re.findall(r'\d+', n.get('bounds')))
         print((x1 + x2) // 2, (y1 + y2) // 2)
@@ -44,6 +48,7 @@ PY
 )
     if [ -n "$xy" ]; then
       adb shell input tap $xy
+      if grep -q "isn't responding" "$OUT/ui.xml"; then sleep 2; continue; fi
       return 0
     fi
     sleep 2
