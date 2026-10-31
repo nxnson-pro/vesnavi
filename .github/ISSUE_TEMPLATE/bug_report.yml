@@ -1,32 +1,32 @@
-name: Báo lỗi / Bug report
-description: VesNavi chạy sai trên iOS hoặc Android / Something goes wrong in VesNavi on iOS or Android
+name: Bug report / Báo lỗi
+description: Something goes wrong in VesNavi on iOS or Android / VesNavi chạy sai trên iOS hoặc Android
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Gửi từ app (**Xe của tôi → Bluetooth Lab → Báo lỗi lên GitHub**) thì các ô dưới đã được điền sẵn, kể cả log. Đừng dán địa chỉ, toạ độ hay thông tin cá nhân — issue là công khai.
         Sent from the app (**My scooter → Bluetooth Lab → Report a bug on GitHub**), the fields below come pre-filled, log included. Don't paste addresses, coordinates or personal details — issues are public.
+        Gửi từ app (**Xe của tôi → Bluetooth Lab → Báo lỗi lên GitHub**) thì các ô dưới đã được điền sẵn, kể cả log. Đừng dán địa chỉ, toạ độ hay thông tin cá nhân — issue là công khai.
   - type: textarea
     id: description
     attributes:
-      label: Chuyện gì xảy ra? / What happened?
-      description: Bạn làm gì, mong đợi gì, thực tế thấy gì. / What you did, what you expected, what you saw.
+      label: What happened? / Chuyện gì xảy ra?
+      description: What you did, what you expected, what you saw. / Bạn làm gì, mong đợi gì, thực tế thấy gì.
     validations:
       required: true
   - type: input
     id: version
     attributes:
-      label: Phiên bản app / App version
-      placeholder: "1.0.8 (40)"
+      label: App version / Phiên bản app
+      placeholder: "0.1.0 (40)"
   - type: input
     id: device
     attributes:
-      label: Điện thoại & xe / Phone & scooter
+      label: Phone & scooter / Điện thoại & xe
       placeholder: "iPhone 15, iOS 18.1 · Vespa GTS Supertech 300 HPE"
   - type: textarea
     id: log
     attributes:
-      label: Log Bluetooth / Bluetooth log
-      description: App tự ẩn địa chỉ Bluetooth, khoá ghép đôi và tên thiết bị khác trước khi điền. / The app removes Bluetooth addresses, pairing keys and other devices' names before filling this in.
+      label: Bluetooth log / Log Bluetooth
+      description: The app removes Bluetooth addresses, pairing keys and other devices' names before filling this in. / App tự ẩn địa chỉ Bluetooth, khoá ghép đôi và tên thiết bị khác trước khi điền.
       render: text

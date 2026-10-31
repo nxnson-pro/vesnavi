@@ -3,7 +3,7 @@ name: Demo GIFs
 # Records the README GIFs on an iOS simulator (UI-test tours in UITests/, app in demo mode) and
 # commits them to docs/media/. Run by hand (Actions → Demo GIFs → Run workflow) after UI changes;
 # also runs when the tours themselves change. Vietnamese GIFs → docs/media/, English →
-# docs/media/en/ (README.en.md). ~10 macOS minutes (10x on a private repo).
+# docs/media/en/ (README.md; the Vietnamese GIFs serve README.vi.md). ~10 macOS minutes (10x on a private repo).
 on:
   workflow_dispatch:
   push:
