@@ -1,76 +1,22 @@
-# VesNavi 1.0.9
+# VesNavi 0.1.0 — bản thử nghiệm công khai đầu tiên
 
-- **Android — xe PMP2 (GTS Supertech) kết nối qua Bluetooth cổ điển (SPP)**, cách các app Android khác đang dùng được với xe này, thay cho đường BLE hai chiều mà iPhone buộc phải dùng. Chuẩn bị một lần: bật chế độ ghép đôi trên màn hình xe (Settings → Configuration → Pairing configuration), rồi Cài đặt → Bluetooth của điện thoại → ghép đôi "BT ROUTER" (mã 0000). Sau đó bấm **Kết nối xe** trong VesNavi; những lần sau app tự kết nối khi bật xe. Đường BLE cũ vẫn còn trong Bluetooth Lab để thử. ⚠️ Chưa thử trên xe thật — có lỗi hãy dùng **Báo lỗi lên GitHub** trong Bluetooth Lab.
-- iOS: không đổi.
+App dẫn đường **miễn phí** hiện hướng rẽ lên màn hình TFT của **Vespa GTS Supertech 300 HPE**, cho cả **iPhone** và **Android**. Đang thử nghiệm — rất mong mọi người dùng thử và báo lỗi.
 
-# VesNavi 1.0.8
+**Cài đặt**
+- iPhone: `VespaNav.ipa` (cài bằng Sideloadly, hoặc SideStore với nguồn `apps.json`) — xem README.
+- Android 8.0 trở lên: `VesNavi.apk`.
 
-- **Bản Android (thử nghiệm)**: tải `VesNavi.apk` ở release này (Android 8.0 trở lên). Đủ tính năng như bản iOS — dẫn đường lên màn hình xe, thông số xe, hành trình & xăng, bảo dưỡng, địa điểm, chỗ đỗ, Tiếng Việt / English. Bản đồ OpenFreeMap và tìm địa chỉ Photon (dữ liệu OpenStreetMap, miễn phí). ⚠️ Chưa thử trên xe thật; có lỗi hãy dùng nút báo lỗi bên dưới. Bản này ký bằng khoá tạm: lần cập nhật sau có thể phải gỡ cài đặt rồi cài lại.
-- **Báo lỗi lên GitHub** (Bluetooth Lab hoặc Cài đặt → Thông tin): app mở sẵn form báo lỗi kèm log Bluetooth; địa chỉ Bluetooth, khoá ghép đôi và tên thiết bị khác được ẩn trước khi gửi. Cần tài khoản GitHub, bạn bấm *Submit* thì mới gửi.
+**Tính năng**
+- Dẫn đường lên màn hình xe: mũi tên rẽ, khoảng cách, tên đường; vòng xuyến đúng lối ra; tự tìm lại đường khi lệch; chạy thử bằng mô phỏng.
+- Giới hạn tốc độ (OpenStreetMap, ước theo luật VN, hoặc GraphHopper).
+- Thông số xe trực tiếp: vòng tua, nước làm mát, ắc quy, tốc độ, ODO…; popup cảnh báo trên màn hình xe.
+- Hành trình, xăng còn lại, ngày nên đổ xăng, tự nhận biết đổ xăng.
+- Nhắc bảo dưỡng theo ODO / thời gian.
+- Nhà, Công ty, Yêu thích, Gần đây, nhớ chỗ đỗ xe.
+- Tiếng Việt / English.
+- **Báo lỗi lên GitHub** ngay trong app (Bluetooth Lab hoặc Cài đặt → Thông tin), kèm log đã ẩn thông tin cá nhân.
 
-# VesNavi 1.0.7
-
-- **Ủng hộ tác giả** (Cài đặt → Thông tin): Ko-fi hoặc chuyển khoản VietQR, hoàn toàn tự nguyện — app vẫn miễn phí, đầy đủ tính năng, không quảng cáo hay nhắc nhở.
-
-# VesNavi 1.0.6
-
-- Phát hành công khai: giấy phép MIT, ghi chú giao thức viết lại theo hướng tương thích.
-- Nguồn **SideStore / AltStore**: thêm `https://github.com/nxnson-pro/vesnavi/releases/latest/download/apps.json` vào SideStore → Sources để nhận bản cập nhật ngay trên iPhone.
-
-# VesNavi 1.0.5
-
-- Màn hình **lưu ý an toàn** khi mở app lần đầu (không thao tác điện thoại khi lái, chỉ đường/giới hạn tốc độ chỉ để tham khảo, app không chính hãng); xem lại ở Cài đặt → Thông tin.
-- Ghi công dữ liệu **© OpenStreetMap contributors** (giấy phép ODbL) trên màn hình tuyến đường và trong Cài đặt → Thông tin.
-- README: thêm miễn trừ trách nhiệm và ghi công dữ liệu.
-
-# VesNavi 1.0.4
-
-- Dòng "Xem tất cả hành trình" và "Tất cả hạng mục" chạm chỗ nào trên dòng cũng mở được (trước đây chỉ nhận chạm vào chữ và mũi tên).
-- Dưới thông số xe hiện "Cập nhật vừa xong" thay cho "Cập nhật sau 0 giây nữa".
-- README có GIF giới thiệu (quay tự động trên máy ảo) và bản tiếng Anh `README.en.md`.
-
-# VesNavi 1.0.3
-
-- Không còn lưu nhầm chỗ đỗ bằng vị trí cũ lúc đang chạy: chỉ dùng vị trí đo trong lúc tắt xe; không đo được thì không lưu (cần quyền vị trí "Luôn luôn" khi điện thoại trong túi).
-
-# VesNavi 1.0.2
-
-- Dòng chữ thông số trên đồng hồ xe: chỉ hiện khi bật màn hình dẫn đường (đã thử trên xe) → còn 2 lựa chọn **Tắt** / **Nhiệt độ nước mát + ắc quy**; ai đang chọn "Dòng chữ" sẽ tự chuyển sang kiểu hiện được.
-- Chỗ đỗ xe chính xác hơn: lúc tắt xe app đo GPS độ chính xác cao tới 20 giây (trước đây dùng vị trí thô, lệch tới ~100 m), hiện vòng sai số trên bản đồ, thêm nút **"Đặt lại tại vị trí hiện tại"** khi đứng cạnh xe.
-
-# VesNavi 1.0.1
-
-- Sửa lỗi GraphHopper "profile can only be one of [car, bike, foot]": gói miễn phí không có kiểu Xe tay ga → mặc định dùng **Ô tô**, key cũ đang để Xe tay ga sẽ tự chuyển sang Ô tô.
-
-# VesNavi 1.0.0 — bản chạy thử đầu tiên
-
-Cài: tải `VespaNav.ipa` bên dưới → Sideloadly (Apple ID miễn phí, cài lại mỗi 7 ngày bằng chính file này).
-
-## Dẫn đường lên màn hình xe
-- Mũi tên rẽ, khoảng cách, tên đường, thời gian còn lại trên TFT của Vespa GTS Supertech 300 HPE (Cobo/PMP2 qua BLE; xe PMP3 cũng hỗ trợ).
-- Vòng xuyến hiện đúng hướng lối ra; lệch tuyến tự tìm đường lại; tới nơi 30 giây thì tự kết thúc.
-- Tìm đường miễn phí: OSRM (mặc định) hoặc GraphHopper (có key, hết lượt tự quay về OSRM).
-- Giới hạn tốc độ: OpenStreetMap + ước theo luật VN (TT 38/2024) hoặc GraphHopper; biển đỏ khi chạy quá.
-- Chế độ mô phỏng để thử tại chỗ.
-
-## Xe của tôi
-- Thông số trực tiếp: vòng tua, nước làm mát, ắc quy, tốc độ, nhiệt độ ngoài trời, gió nạp, tay ga, tiêu hao, ODO.
-- Popup cảnh báo trên màn hình xe: nước làm mát ≥ 105 °C, ắc quy không sạc / yếu (thử nghiệm).
-- Tự kết nối khi bật xe, chạy nền khi khoá màn hình.
-
-## Hành trình & xăng
-- Tự ghi mỗi chuyến: quãng đường, thời gian, tốc độ TB/tối đa, xăng đã dùng, L/100 km, nhiệt độ.
-- Xăng còn lại, quãng đường còn đi được, ngày nên đổ xăng; tự nhận biết khi đổ xăng (đồng hồ xăng tăng ≥ 2 vạch).
-
-## Bảo dưỡng & địa điểm
-- Nhắc thay nhớt, lọc gió, bugi, má phanh, dây curoa, nước mát, dầu phanh theo ODO/tháng; popup trên xe khi quá hạn.
-- Nhà / Công ty / Yêu thích / Gần đây; nhớ chỗ đỗ xe khi tắt máy.
-
-## Khác
-- Tiếng Việt / English, đổi ngay trong Cài đặt.
-- Tối ưu pin: GPS chính xác chỉ bật khi dẫn đường, giao diện cập nhật thưa, bản đồ phẳng.
-
-## Cần kiểm tra khi chạy thử
-- Bình đầy hiện mấy vạch xăng trên đồng hồ xe (app đang giả định 7 — chỉnh ở Xe của tôi → Xăng → ⋯).
-- Popup cảnh báo và dòng chữ thông số ("Dòng chữ + bật màn hình dẫn đường") có hiện trên TFT không.
-- Có lỗi: Bluetooth Lab → Xuất log, gửi cho dev.
+**Tình trạng**
+- iPhone: kết nối xe, dẫn đường và thông số xe đã chạy thật trên GTS Supertech.
+- Android: chưa thử trên xe thật. Xe PMP2 (GTS Supertech) kết nối qua Bluetooth cổ điển — cần ghép đôi "BT ROUTER" trong Cài đặt → Bluetooth trước.
+- Xe đời khác (PMP3, dịch vụ Bluetooth 0x1815) có hỗ trợ trong code nhưng chưa thử.

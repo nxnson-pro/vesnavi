@@ -32,6 +32,11 @@ android {
         targetSdk = 35
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
         versionName = marketingVersion
+        // Phones are ARM. The x86 builds only serve emulators (and would double the APK), so they are
+        // left out unless asked for, as the CI smoke test does with -Pvesnavi.allAbis=true.
+        if (providers.gradleProperty("vesnavi.allAbis").orNull != "true") {
+            ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        }
     }
 
     signingConfigs {
@@ -47,7 +52,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // R8: drops unused code (most of the Material icon set) and resources.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
