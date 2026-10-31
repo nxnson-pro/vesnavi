@@ -118,8 +118,8 @@ fun BluetoothLabScreen(model: AppModel, nav: Navigator, requestBluetooth: () -> 
                 }
                 Text(
                     L(
-                        "Xe PMP2 (GTS Supertech): ghép đôi một lần theo hướng dẫn Vespa — trên màn hình xe chọn Settings → Configuration → Pairing configuration, rồi Cài đặt điện thoại → Bluetooth → \"BT ROUTER\" (mã 0000 nếu được hỏi), sau đó mới kết nối ở đây. Điện thoại kết nối xe để lấy khoá, tự ngắt, rồi xe kết nối ngược vào điện thoại (\"Chờ xe kết nối…\"). Bản Android chưa được thử trên xe thật — nếu không được, hãy xuất log gửi cho dev.",
-                        "PMP2 scooters (GTS Supertech): pair once following Vespa's guide — on the scooter display choose Settings → Configuration → Pairing configuration, then phone Settings → Bluetooth → \"BT ROUTER\" (code 0000 if asked), and only then connect here. The phone connects to fetch a key, disconnects, then the scooter connects back to the phone (\"Waiting for the scooter…\"). The Android version hasn't been tried on a real scooter yet — if it doesn't work, export the log and send it to the developer.",
+                        "Quét BLE dùng cho xe PMP3 (dịch vụ 1815), hoặc để thử đường BLE hai link như iPhone khi đã tắt SPP ở trên (điện thoại kết nối xe để lấy khoá, tự ngắt, rồi xe kết nối ngược vào điện thoại). Thiết bị nghi là Vespa có biểu tượng 🛵. Bản Android chưa được thử trên xe thật — nếu không được, hãy báo lỗi kèm log.",
+                        "The BLE scan is for PMP3 scooters (service 1815), or to try the iPhone-style two-link BLE path with SPP switched off above (the phone fetches a key, disconnects, then the scooter connects back to the phone). Likely Vespa devices are marked 🛵. The Android version hasn't been tried on a real scooter yet — if it doesn't work, report a bug with the log.",
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
