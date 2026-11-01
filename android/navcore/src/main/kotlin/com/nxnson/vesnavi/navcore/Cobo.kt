@@ -260,6 +260,15 @@ class CoboServerSession(private val answer: Bytes?) {
     /** 0x27 reads not answered yet (front = the one in flight). */
     var pendingReads: List<Bytes> = Cobo.readIDs
         private set
+    /** Times [retryStalledInit] re-sent the current init step. */
+    var initRetries = 0
+        private set
+    /** What the phone indicated for the scooter's last init request — re-sent if the scooter goes quiet. */
+    private var lastInitStep: List<Bytes> = emptyList()
+
+    companion object {
+        const val MAX_INIT_RETRIES = 2
+    }
 
     fun handleWrite(b: Bytes): Output {
         val indications = mutableListOf<Bytes>()
@@ -273,16 +282,22 @@ class CoboServerSession(private val answer: Bytes?) {
                     indications += Cobo.frames(0x70, Cobo.initPayload)
                     events += Event.AnswerSent
                     stage = Stage.INITIALIZING
+                    startInitStep(indications)
                 }
             }
             b.size >= 6 && b[0] == 0xC0 && b[1] == 0x44 && b[2] == 0x51 -> {
                 val cmd = b[4]
                 events += Event.Command(cmd, b.drop(6).take(b[5]))
+                val initializing = stage == Stage.INITIALIZING
                 when (cmd) {
-                    0x70 -> indications += Cobo.frames(0x01)
-                    0x02 -> {
+                    0x70 -> if (initializing) {
+                        indications += Cobo.frames(0x01)
+                        startInitStep(indications)
+                    }
+                    0x02 -> if (initializing) {
                         indications += Cobo.frames(0x06)
                         indications += Cobo.frames(0x10)
+                        startInitStep(indications)
                     }
                     0x30 -> {
                         // Answer to our 0x27 read: drop it and ask for the next parameter straight away.
@@ -292,7 +307,8 @@ class CoboServerSession(private val answer: Bytes?) {
                             indications += readRequestFrames()
                         }
                     }
-                    0x11 -> {
+                    0x11 -> if (initializing) {
+                        // Only once: a re-sent init step can make the scooter repeat its answer.
                         indications += Cobo.frames(0x23, Cobo.subscribePayload)
                         indications += Cobo.frames(0x28, Cobo.structuredSubscribePayload)
                         stage = Stage.READY
@@ -304,6 +320,22 @@ class CoboServerSession(private val answer: Bytes?) {
             else -> events += Event.Unhandled(b)
         }
         return Output(indications, events)
+    }
+
+    /**
+     * The init step the scooter hasn't answered, to indicate again (at most [MAX_INIT_RETRIES] times per
+     * step), or nothing. Seen on the scooter: it answered 0x70 but never sent 0x02 after our 0x01, and
+     * held the silent link for ~40 s.
+     */
+    fun retryStalledInit(): List<Bytes> {
+        if (stage != Stage.INITIALIZING || initRetries >= MAX_INIT_RETRIES || lastInitStep.isEmpty()) return emptyList()
+        initRetries++
+        return lastInitStep
+    }
+
+    private fun startInitStep(indications: List<Bytes>) {
+        lastInitStep = indications.toList()
+        initRetries = 0
     }
 
     /** 0x27 frames for the next unanswered read, or nothing once both were answered. */

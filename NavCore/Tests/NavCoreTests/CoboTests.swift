@@ -100,6 +100,32 @@ final class CoboTests: XCTestCase {
         XCTAssertTrue(s.handleWrite(can).indications.isEmpty, "no F0 acks on BLE")
     }
 
+    func testServerSessionResendsAStalledInitStep() {
+        let answer = hex("9D 1E A3 BE 50 25")
+        let s = CoboServerSession(answer: answer)
+        XCTAssertTrue(s.retryStalledInit().isEmpty, "nothing to resend before the scooter asks")
+
+        let r1 = s.handleWrite(Cobo.answerRequest)
+        XCTAssertEqual(s.retryStalledInit(), r1.indications, "answer + 0x70 again")
+
+        let r2 = s.handleWrite(hex("C0 44 51 00 70 0A 00 01 01 02 01 01 03 02 00 00 1A"))
+        XCTAssertEqual(s.initRetries, 0, "a new step resets the count")
+        XCTAssertEqual(s.retryStalledInit(), Cobo.frames(0x01))
+        XCTAssertEqual(s.retryStalledInit(), r2.indications)
+        XCTAssertTrue(s.retryStalledInit().isEmpty, "at most maxInitRetries per step")
+
+        _ = s.handleWrite(hex("C0 44 51 00 02 00 97"))
+        XCTAssertEqual(s.retryStalledInit(), Cobo.frames(0x06) + Cobo.frames(0x10))
+        let r4 = s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD"))
+        XCTAssertTrue(r4.events.contains(.ready))
+        // The scooter may answer a re-sent step twice: 0x23 + 0x28 go out only once.
+        let dup = s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD"))
+        XCTAssertTrue(dup.indications.isEmpty, "0x23 + 0x28 only once")
+        XCTAssertFalse(dup.events.contains(.ready))
+        XCTAssertTrue(s.handleWrite(hex("C0 44 51 00 02 00 97")).indications.isEmpty, "no init replies once ready")
+        XCTAssertTrue(s.retryStalledInit().isEmpty, "nothing to resend once ready")
+    }
+
     func testServerSessionWithoutAnswer() {
         let s = CoboServerSession(answer: nil)
         let r = s.handleWrite(Cobo.answerRequest)

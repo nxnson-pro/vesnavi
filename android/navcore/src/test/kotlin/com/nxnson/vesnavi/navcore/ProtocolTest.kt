@@ -116,6 +116,33 @@ class CoboTest {
     }
 
     @Test
+    fun `server session resends a stalled init step`() {
+        val answer = hex("9D 1E A3 BE 50 25")
+        val s = CoboServerSession(answer)
+        assertTrue(s.retryStalledInit().isEmpty(), "nothing to resend before the scooter asks")
+
+        val r1 = s.handleWrite(Cobo.answerRequest)
+        assertEquals(r1.indications, s.retryStalledInit(), "answer + 0x70 again")
+
+        val r2 = s.handleWrite(hex("C0 44 51 00 70 0A 00 01 01 02 01 01 03 02 00 00 1A"))
+        assertEquals(0, s.initRetries, "a new step resets the count")
+        assertEquals(Cobo.frames(0x01), s.retryStalledInit())
+        assertEquals(r2.indications, s.retryStalledInit())
+        assertTrue(s.retryStalledInit().isEmpty(), "at most MAX_INIT_RETRIES per step")
+
+        s.handleWrite(hex("C0 44 51 00 02 00 97"))
+        assertEquals(Cobo.frames(0x06) + Cobo.frames(0x10), s.retryStalledInit())
+        val r4 = s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD"))
+        assertTrue(CoboServerSession.Event.Ready in r4.events)
+        // The scooter may answer a re-sent step twice: 0x23 + 0x28 go out only once.
+        val dup = s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD"))
+        assertTrue(dup.indications.isEmpty(), "0x23 + 0x28 only once")
+        assertFalse(CoboServerSession.Event.Ready in dup.events)
+        assertTrue(s.handleWrite(hex("C0 44 51 00 02 00 97")).indications.isEmpty(), "no init replies once ready")
+        assertTrue(s.retryStalledInit().isEmpty(), "nothing to resend once ready")
+    }
+
+    @Test
     fun `server session without an answer`() {
         val s = CoboServerSession(null)
         val r = s.handleWrite(Cobo.answerRequest)

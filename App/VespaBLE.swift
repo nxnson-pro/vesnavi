@@ -118,6 +118,11 @@ final class VespaBLE: NSObject, DashboardSink {
     @ObservationIgnored private var writeChar: CBCharacteristic?
     @ObservationIgnored private var session: PMP3Session?
     @ObservationIgnored private var keyFetch: CoboKeyFetch?
+    /// Challenge answered, the scooter's 6-byte answer not in yet.
+    @ObservationIgnored private var keyReplyPending = false
+    /// Key links the scooter dropped right after our reply, in a row.
+    @ObservationIgnored private var keyRejections = 0
+    @ObservationIgnored private var keyRetry: Task<Void, Never>?
     @ObservationIgnored private var queue: [[UInt8]] = []
     @ObservationIgnored private var writeInFlight = false
     @ObservationIgnored private var pmp3KeepAlive: Task<Void, Never>?
@@ -133,6 +138,8 @@ final class VespaBLE: NSObject, DashboardSink {
     @ObservationIgnored private var awaitingScooter = false
     @ObservationIgnored private var indications: [[UInt8]] = []
     @ObservationIgnored private var serverWatchdog: Task<Void, Never>?
+    /// Writes received from the scooter on the data link — the init watchdog's sign of progress.
+    @ObservationIgnored private var serverWrites = 0
     @ObservationIgnored private var coboStream: Task<Void, Never>?
     @ObservationIgnored private var lastLoggedDash: [UInt8]?
     @ObservationIgnored private var lastCanLog = Date.distantPast
@@ -245,6 +252,9 @@ final class VespaBLE: NSObject, DashboardSink {
     func disconnect() {
         userDisconnected = true
         autoConnectOnDiscovery = false
+        keyRetry?.cancel()
+        keyRetry = nil
+        keyRejections = 0
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
         endServerLink(reconnect: false)
         state = .idle
@@ -431,6 +441,29 @@ final class VespaBLE: NSObject, DashboardSink {
         central.connect(p)  // iOS keeps this pending until the scooter is in range
     }
 
+    /// The scooter dropped the key link right after our challenge reply. Seen on the scooter for the
+    /// first ~40 s after switching it on (reply accepted unchanged afterwards); reconnecting every
+    /// 0.6 s only hammers it, so wait 2, 4, 8, then 10 s. In the background a sleeping Task doesn't
+    /// run, so there the pending CoreBluetooth connect is kept (see `endServerLink`).
+    private func retryKeyLinkAfterRejection() {
+        keyRejections += 1
+        let delay = min(10, 2 << min(keyRejections - 1, 3))
+        guard UIApplication.shared.applicationState == .active else {
+            append(L("Xe ngắt ngay sau khi trả lời thử thách (lần \(keyRejections)) — thử lại", "Scooter dropped the link right after the challenge reply (\(keyRejections)×) — retrying"))
+            reconnectIfRemembered()
+            return
+        }
+        append(L("Xe ngắt ngay sau khi trả lời thử thách (lần \(keyRejections)) — xe có thể vừa bật hoặc đang bận với iPhone; thử lại sau \(delay) s",
+                 "Scooter dropped the link right after the challenge reply (\(keyRejections)×) — it may have just been switched on or be busy with the iPhone; retrying in \(delay) s"))
+        keyRetry?.cancel()
+        keyRetry = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(delay) * 1_000_000_000)
+            guard let self, !Task.isCancelled else { return }
+            self.keyRetry = nil
+            self.reconnectIfRemembered()
+        }
+    }
+
     /// The 6-byte auth answer may start with 0xC6 too; dash packets are always longer.
     private static func isDash(_ b: [UInt8]) -> Bool { b.count > 6 && b.first == PMP3.dashTag }
 
@@ -458,7 +491,10 @@ final class VespaBLE: NSObject, DashboardSink {
             if !noResp { append(L("⚠️ Gói ghi không phản hồi quá nhỏ (\(p.maximumWriteValueLength(for: .withoutResponse)) byte) — dùng ghi có phản hồi", "⚠️ Write-without-response too small (\(p.maximumWriteValueLength(for: .withoutResponse)) bytes) — using write with response")) }
             append(L("TX \(Hex.encode(reply)) — trả lời thử thách, chờ xe gửi câu trả lời 6 byte", "TX \(Hex.encode(reply)) — challenge reply, waiting for the 6-byte answer"))
             p.writeValue(Data(reply), for: c, type: type)
+            keyReplyPending = true
         case .answer(let a):
+            keyReplyPending = false
+            keyRejections = 0
             coboAnswer = a
             logSecrets.insert(a)
             append(L("🔑 Link lấy khoá: nhận câu trả lời \(Hex.encode(a))", "🔑 Key link: answer \(Hex.encode(a))"))
@@ -737,6 +773,8 @@ extension VespaBLE: CBCentralManagerDelegate {
 
     nonisolated func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         MainActor.assumeIsolated {
+            keyRetry?.cancel()
+            keyRetry = nil
             connectedName = peripheral.name
             state = .discovering
             resetCentralLink()
@@ -767,7 +805,13 @@ extension VespaBLE: CBCentralManagerDelegate {
             }
             append(L("Mất kết nối (\(msg))", "Disconnected (\(msg))"))
             state = .idle
-            reconnectIfRemembered()
+            let rejected = keyReplyPending
+            keyReplyPending = false
+            guard rejected else {
+                reconnectIfRemembered()
+                return
+            }
+            retryKeyLinkAfterRejection()
         }
     }
 }
@@ -945,12 +989,34 @@ extension VespaBLE: CBPeripheralManagerDelegate {
             append(L("Xe đã kết nối vào iPhone (link dữ liệu) — gói tối đa \(maxLen) byte", "Scooter connected to the iPhone (data link) — max packet \(maxLen) bytes"))
             if maxLen < 128 { append(L("⚠️ Gói tối đa < 128 byte — gói 0x28 (128 byte) sẽ không gửi được", "⚠️ Max packet < 128 bytes — the 0x28 packet (128 bytes) won't fit")) }
             pumpIndications()
-            // iOS can't drop a central from the server side; a stalled init can only be reported.
-            serverWatchdog = Task { [weak self] in
-                try? await Task.sleep(nanoseconds: 8_000_000_000)
-                guard let self, !Task.isCancelled, let server = self.server, server.stage != .ready else { return }
-                self.append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (\(server.stage)) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (\(server.stage)) — cycle the ignition and try again"))
+            serverWatchdog = Task { [weak self] in await self?.watchInit() }
+        }
+    }
+
+    /// Every 2 s without a write from the scooter during init: indicate the unanswered step again
+    /// (`CoboServerSession.retryStalledInit`), then report. iOS can't drop a central from the server side.
+    private func watchInit() async {
+        var seen = serverWrites
+        var quietSeconds = 0
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled, let server, server.stage != .ready else { return }
+            if serverWrites != seen {
+                seen = serverWrites
+                quietSeconds = 0
+                continue
             }
+            quietSeconds += 2
+            let again = server.retryStalledInit()
+            // Before the scooter's first request there is nothing to resend: report after 8 s as before.
+            if again.isEmpty, server.stage == .waitingForRequest, quietSeconds < 8 { continue }
+            guard !again.isEmpty else {
+                append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (\(server.stage)) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (\(server.stage)) — cycle the ignition and try again"))
+                return
+            }
+            append(L("↻ Xe chưa trả lời sau 2 s — gửi lại bước khởi tạo (lần \(server.initRetries)/\(CoboServerSession.maxInitRetries))",
+                     "↻ No answer from the scooter after 2 s — resending the init step (\(server.initRetries)/\(CoboServerSession.maxInitRetries))"))
+            for frame in again { indicate(frame) }
         }
     }
 
@@ -970,6 +1036,7 @@ extension VespaBLE: CBPeripheralManagerDelegate {
         let first = requests.first
         MainActor.assumeIsolated {
             for item in items where item.uuid == writeID {
+                serverWrites += 1
                 if scooterCentral == nil { scooterCentral = item.central }
                 if server == nil { server = CoboServerSession(answer: coboAnswer) }
                 guard let server else { continue }

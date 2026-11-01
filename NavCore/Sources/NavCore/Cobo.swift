@@ -235,7 +235,12 @@ public final class CoboServerSession {
     public private(set) var stage: Stage = .waitingForRequest
     /// 0x27 reads not answered yet (front = the one in flight).
     public private(set) var pendingReads: [[UInt8]] = Cobo.readIDs
+    /// Times `retryStalledInit()` re-sent the current init step.
+    public private(set) var initRetries = 0
+    public static let maxInitRetries = 2
     private let answer: [UInt8]?
+    /// What the phone indicated for the scooter's last init request — re-sent if the scooter goes quiet.
+    private var lastInitStep: [[UInt8]] = []
 
     public init(answer: [UInt8]?) {
         self.answer = answer
@@ -252,22 +257,26 @@ public final class CoboServerSession {
             out.indications += Cobo.frames(0x70, Cobo.initPayload)
             out.events.append(.answerSent)
             stage = .initializing
+            startInitStep(out.indications)
         } else if b.count >= 6, b[0] == 0xC0, b[1] == 0x44, b[2] == 0x51 {
             let cmd = b[4]
             out.events.append(.command(cmd, Array(b.dropFirst(6).prefix(Int(b[5])))))
             switch cmd {
-            case 0x70:
+            case 0x70 where stage == .initializing:
                 out.indications += Cobo.frames(0x01)
-            case 0x02:
+                startInitStep(out.indications)
+            case 0x02 where stage == .initializing:
                 out.indications += Cobo.frames(0x06)
                 out.indications += Cobo.frames(0x10)
+                startInitStep(out.indications)
             case 0x30:
                 // Answer to our 0x27 read: drop it and ask for the next parameter straight away.
                 if let first = pendingReads.first, b.count >= 8, Self.contains(Array(b[6...]), first) {
                     pendingReads.removeFirst()
                     out.indications += readRequestFrames()
                 }
-            case 0x11:
+            case 0x11 where stage == .initializing:
+                // Only once: a re-sent init step can make the scooter repeat its answer.
                 out.indications += Cobo.frames(0x23, Cobo.subscribePayload)
                 out.indications += Cobo.frames(0x28, Cobo.structuredSubscribePayload)
                 stage = .ready
@@ -281,6 +290,20 @@ public final class CoboServerSession {
             out.events.append(.unhandled(b))
         }
         return out
+    }
+
+    /// The init step the scooter hasn't answered, to indicate again (at most `maxInitRetries` times per
+    /// step), or nothing. Seen on the scooter: it answered 0x70 but never sent 0x02 after our 0x01, and
+    /// held the silent link for ~40 s.
+    public func retryStalledInit() -> [[UInt8]] {
+        guard stage == .initializing, initRetries < Self.maxInitRetries, !lastInitStep.isEmpty else { return [] }
+        initRetries += 1
+        return lastInitStep
+    }
+
+    private func startInitStep(_ indications: [[UInt8]]) {
+        lastInitStep = indications
+        initRetries = 0
     }
 
     /// 0x27 frames for the next unanswered read, or nothing once both were answered.

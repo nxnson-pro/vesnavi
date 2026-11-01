@@ -84,6 +84,8 @@ Sau khi sẵn sàng:
 - Mọi write request phải `respond(to:withResult:)`.
 - Gói `0x28` có khung 128 byte → cần `maximumUpdateValueLength ≥ 128`.
 - Không tự kết nối lại link lấy khoá khi đang chờ / đang chạy link dữ liệu; link dữ liệu rớt → xoá câu trả lời cũ, làm lại từ link lấy khoá.
+- Log 01/11 (cùng iPhone, cùng code với 29/10): ~40 s đầu sau khi bật xe, xe **ngắt link lấy khoá ~100 ms sau câu trả lời** (28 lần liền, cùng công thức), rồi chấp nhận bình thường. Ngày 29/10 là 7/7 lần chấp nhận ngay. App giờ giãn thời gian thử lại 2 → 4 → 8 → 10 s (chỉ khi app đang mở; ở nền giữ kết nối chờ của CoreBluetooth).
+- Cùng log: link dữ liệu chạy tới `0x01` (byte giống hệt phiên chạy được), sau đó xe **im lặng, không gửi `0x02`**, giữ link ~40 s rồi ngắt. Chưa rõ nguyên nhân phía xe. App giờ gửi lại bước khởi tạo chưa được trả lời sau mỗi 2 s im lặng, tối đa 2 lần (`CoboServerSession.retryStalledInit`); lệnh trùng do gửi lại (`0x11` hai lần) chỉ được trả một lần.
 
 ## Khởi tạo trên Classic/SPP (Android)
 
