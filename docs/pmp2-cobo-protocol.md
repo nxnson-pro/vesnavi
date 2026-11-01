@@ -86,6 +86,7 @@ Sau khi sẵn sàng:
 - Không tự kết nối lại link lấy khoá khi đang chờ / đang chạy link dữ liệu; link dữ liệu rớt → xoá câu trả lời cũ, làm lại từ link lấy khoá.
 - Log 01/11 (cùng iPhone, cùng code với 29/10): ~40 s đầu sau khi bật xe, xe **ngắt link lấy khoá ~100 ms sau câu trả lời** (28 lần liền, cùng công thức), rồi chấp nhận bình thường. Ngày 29/10 là 7/7 lần chấp nhận ngay. App giờ giãn thời gian thử lại 2 → 4 → 8 → 10 s (chỉ khi app đang mở; ở nền giữ kết nối chờ của CoreBluetooth).
 - Cùng log: link dữ liệu chạy tới `0x01` (byte giống hệt phiên chạy được), sau đó xe **im lặng, không gửi `0x02`**, giữ link ~40 s rồi ngắt. Chưa rõ nguyên nhân phía xe. App giờ gửi lại bước khởi tạo chưa được trả lời sau mỗi 2 s im lặng, tối đa 2 lần (`CoboServerSession.retryStalledInit`); lệnh trùng do gửi lại (`0x11` hai lần) chỉ được trả một lần.
+- Cùng ngày, phiên sau: vẫn kẹt sau `0x01`, nhưng xe **giữ link dữ liệu 7 phút và hiện đúng mọi gói dash** (mũi tên test từ Bluetooth Lab). ⇒ Gói dash `C6` không cần khởi tạo xong. Sau khi gửi lại hết lượt, app chuyển sang "sẵn sàng" chỉ có dẫn đường (`CoboServerSession.proceedWithoutInit`: không `0x23`/`0x28`, không đọc `0x27`); nếu xe gửi `0x02`/`0x11` muộn thì vẫn đăng ký dữ liệu động cơ như thường.
 
 ## Khởi tạo trên Classic/SPP (Android)
 

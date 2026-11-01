@@ -126,6 +126,29 @@ final class CoboTests: XCTestCase {
         XCTAssertTrue(s.retryStalledInit().isEmpty, "nothing to resend once ready")
     }
 
+    func testServerSessionProceedsWithoutInit() {
+        let s = CoboServerSession(answer: hex("9D 1E A3 BE 50 25"))
+        XCTAssertFalse(s.proceedWithoutInit(), "nothing to skip before the scooter asks")
+        _ = s.handleWrite(Cobo.answerRequest)
+        _ = s.handleWrite(hex("C0 44 51 00 70 0A 00 01 01 02 01 01 03 02 00 00 1A"))
+        // The scooter goes silent after our 0x01 (issue #6) but keeps the link.
+        XCTAssertTrue(s.proceedWithoutInit())
+        XCTAssertEqual(s.stage, .ready)
+        XCTAssertTrue(s.initSkipped)
+        XCTAssertTrue(s.readRequestFrames().isEmpty, "no 0x27 reads without the init")
+        XCTAssertTrue(s.retryStalledInit().isEmpty)
+        XCTAssertFalse(s.proceedWithoutInit(), "only once")
+
+        // A late finish still subscribes to engine data, without a second ready.
+        XCTAssertEqual(s.handleWrite(hex("C0 44 51 00 02 00 97")).indications, Cobo.frames(0x06) + Cobo.frames(0x10))
+        let late = s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD"))
+        XCTAssertEqual(late.indications, Cobo.frames(0x23, Cobo.subscribePayload) + Cobo.frames(0x28, Cobo.structuredSubscribePayload))
+        XCTAssertFalse(late.events.contains(.ready))
+        XCTAssertFalse(s.initSkipped)
+        XCTAssertEqual(s.readRequestFrames(), Cobo.frames(0x27, Cobo.readRequestPayload([0xFE, 0x0B])))
+        XCTAssertTrue(s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD")).indications.isEmpty)
+    }
+
     func testServerSessionWithoutAnswer() {
         let s = CoboServerSession(answer: nil)
         let r = s.handleWrite(Cobo.answerRequest)

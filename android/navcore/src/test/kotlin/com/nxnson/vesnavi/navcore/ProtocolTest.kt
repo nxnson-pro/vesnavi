@@ -143,6 +143,30 @@ class CoboTest {
     }
 
     @Test
+    fun `server session proceeds without init`() {
+        val s = CoboServerSession(hex("9D 1E A3 BE 50 25"))
+        assertFalse(s.proceedWithoutInit(), "nothing to skip before the scooter asks")
+        s.handleWrite(Cobo.answerRequest)
+        s.handleWrite(hex("C0 44 51 00 70 0A 00 01 01 02 01 01 03 02 00 00 1A"))
+        // The scooter goes silent after our 0x01 (issue #6) but keeps the link.
+        assertTrue(s.proceedWithoutInit())
+        assertEquals(CoboServerSession.Stage.READY, s.stage)
+        assertTrue(s.initSkipped)
+        assertTrue(s.readRequestFrames().isEmpty(), "no 0x27 reads without the init")
+        assertTrue(s.retryStalledInit().isEmpty())
+        assertFalse(s.proceedWithoutInit(), "only once")
+
+        // A late finish still subscribes to engine data, without a second ready.
+        assertEquals(Cobo.frames(0x06) + Cobo.frames(0x10), s.handleWrite(hex("C0 44 51 00 02 00 97")).indications)
+        val late = s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD"))
+        assertEquals(Cobo.frames(0x23, Cobo.subscribePayload) + Cobo.frames(0x28, Cobo.structuredSubscribePayload), late.indications)
+        assertFalse(CoboServerSession.Event.Ready in late.events)
+        assertFalse(s.initSkipped)
+        assertEquals(Cobo.frames(0x27, Cobo.readRequestPayload(listOf(0xFE, 0x0B))), s.readRequestFrames())
+        assertTrue(s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD")).indications.isEmpty())
+    }
+
+    @Test
     fun `server session without an answer`() {
         val s = CoboServerSession(null)
         val r = s.handleWrite(Cobo.answerRequest)
