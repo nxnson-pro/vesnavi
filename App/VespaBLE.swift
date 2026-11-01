@@ -310,6 +310,9 @@ final class VespaBLE: NSObject, DashboardSink {
 
     func clearLog() { log.removeAll() }
 
+    /// App-side events worth having in a bug report (navigation, speed-limit lookups).
+    func note(_ text: String) { append(text) }
+
     /// `redacted`: for a public GitHub issue — no Bluetooth addresses, pairing keys, auth answers or
     /// names of other people's devices.
     func exportLog(redacted: Bool = false) -> String {

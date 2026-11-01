@@ -139,6 +139,7 @@ class NavigationEngine(val route: Route) {
         val duration = if (totalLength > 0) route.duration * remaining / totalLength else 0.0
         val currentStreet = route.steps.lastOrNull { cumulative[it.pointIndex] <= along + 1 }?.streetName
         val limit = route.speedLimits.firstOrNull { it.from <= segment && segment < max(it.to, it.from + 1) }?.kmh
+        val after = if (hasArrived) null else stepAfter(next)
 
         return NavigationState(
             maneuver = maneuver,
@@ -154,7 +155,17 @@ class NavigationEngine(val route: Route) {
             speedLimit = limit,
             segmentIndex = segment,
             currentStreetName = currentStreet,
+            afterNextManeuver = after?.maneuver,
+            afterNextRoundaboutTurnDegrees = after?.exitTurnDegrees,
+            distanceToAfterNextManeuver = after?.let { max(0.0, cumulative[it.pointIndex] - along) },
         )
+    }
+
+    /** The maneuver following [current] (skipping depart), the arrival last; null after the arrival. */
+    private fun stepAfter(current: RouteStep): RouteStep? {
+        if (current.maneuver == Maneuver.Arrive) return null
+        val at = cumulative[current.pointIndex]
+        return route.steps.firstOrNull { it.maneuver != Maneuver.Depart && cumulative[it.pointIndex] > at + 1 }
     }
 
     /** First maneuver strictly ahead of `along` (skipping depart); falls back to arrival. */

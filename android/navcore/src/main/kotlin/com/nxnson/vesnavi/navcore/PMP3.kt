@@ -115,10 +115,11 @@ object PMP3 {
     }
 
     /** Like [icon] for a maneuver, but roundabouts get the pictogram of the actual exit direction. */
-    fun icon(state: NavigationState): Int {
-        val d = state.roundaboutTurnDegrees
-        if (state.maneuver is Maneuver.Roundabout && d != null) return RouteAnnotator.roundaboutIcon(d)
-        return icon(state.maneuver)
+    fun icon(state: NavigationState): Int = icon(state.maneuver, state.roundaboutTurnDegrees)
+
+    fun icon(maneuver: Maneuver, roundaboutTurnDegrees: Double?): Int {
+        if (maneuver is Maneuver.Roundabout && roundaboutTurnDegrees != null) return RouteAnnotator.roundaboutIcon(roundaboutTurnDegrees)
+        return icon(maneuver)
     }
 
     /** How the road-name field (tag 4) is prefixed; depends on the scooter model. */

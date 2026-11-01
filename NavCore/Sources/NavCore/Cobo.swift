@@ -105,9 +105,19 @@ public enum Cobo {
     /// is active on the GTS Supertech — without it the TFT keeps its normal screen and ignores the arrow.
     public static func dashPayload(icon: UInt8, distanceToTurn: Int, distanceToDestination: Int,
                                    minutesToDestination: Int, text: String, navigating: Bool = true,
-                                   speedLimit: Int = 0) -> [UInt8] {
+                                   speedLimit: Int = 0, afterNextIcon: UInt8? = nil,
+                                   distanceToAfterNext: Int? = nil) -> [UInt8] {
         var p: [UInt8] = [PMP3.dashTag]
-        p.append(contentsOf: [0x01, icon, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00])
+        // Tag 01: icon, roundabout exit number, 00, then the maneuver after it + its distance (24-bit).
+        // Without one: 00 + FF FF FF — the TFT then shows "…" in that corner.
+        p.append(contentsOf: [0x01, icon, 0x00, 0x00])
+        if let afterNextIcon, let distanceToAfterNext {
+            p.append(afterNextIcon)
+            p.append(contentsOf: PMP3.be24(distanceToAfterNext))
+        } else {
+            p.append(contentsOf: [0x00, 0xFF, 0xFF, 0xFF])
+        }
+        p.append(0x00)
         // Tag 02: speed limit in km/h (official `writeSpeedLimitInfo`), 0 = none.
         p.append(contentsOf: [0x02, UInt8(max(0, min(speedLimit, 250))), 0x00])
         p.append(0x03)
@@ -172,7 +182,9 @@ public enum Cobo {
                            distanceToTurn: max(1, Int(state.distanceToManeuver.rounded())),
                            distanceToDestination: max(1, Int(state.remainingDistance.rounded())),
                            minutesToDestination: max(1, Int((state.remainingDuration / 60).rounded(.up))),
-                           text: dashText(for: state, language: language), speedLimit: state.speedLimit ?? 0)
+                           text: dashText(for: state, language: language), speedLimit: state.speedLimit ?? 0,
+                           afterNextIcon: state.afterNextManeuver.map { PMP3.icon(for: $0, roundaboutTurnDegrees: state.afterNextRoundaboutTurnDegrees) },
+                           distanceToAfterNext: state.distanceToAfterNextManeuver.map { max(1, Int($0.rounded())) })
     }
 
     /// Street name, or the short instruction ("RE PHAI") when the road has no name —

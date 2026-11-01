@@ -74,7 +74,7 @@ Sau khi sẵn sàng:
 - Phiên thứ 2 trong log: xe gửi câu trả lời nhưng **không** kết nối ngược lại; ~10 s sau app chính hãng chạy lại link lấy khoá. Link dữ liệu rớt (supervision timeout) → app chính hãng chạy lại link lấy khoá ngay.
 - Gói dash `C6 …` mỗi ~0,48 s. Không có lộ trình → `C6 01 00 … 04 "NO ADDRESS" 00`.
 - **Khi đang dẫn đường, mỗi gói dash phải kèm tag `06 04 00`** ("đang dẫn đường"); kết thúc thì gửi `06 03 00`. Thiếu tag này TFT GTS Supertech vẫn ở màn hình thường, không hiện mũi tên (đã kiểm chứng trên xe 29/10). Thứ tự tag: `02 03 01 04 06`; gói "NO ADDRESS" lúc chưa dẫn đường không có tag 06.
-- Tag 01 đầy đủ: `01 icon số_lối_ra_vòng_xuyến 00 icon_kế_tiếp khoảng_cách_kế_tiếp24 00` (không có → `00`, `FF FF FF`).
+- Tag 01 đầy đủ: `01 icon số_lối_ra_vòng_xuyến 00 icon_kế_tiếp khoảng_cách_kế_tiếp24 00` (không có → `00`, `FF FF FF`). `icon_kế_tiếp` = hướng rẽ **sau** hướng sắp tới, khoảng cách tính từ vị trí hiện tại. Gửi `00 FF FF FF` thì TFT hiện "…" ở góc phải (thấy trên xe 01/11); VesNavi giờ gửi hướng thật (`NavigationState.afterNextManeuver`), chỉ còn `00 FF FF FF` khi hướng sắp tới là điểm đến.
 - Gói dash có đủ tag `01 icon 00 00 00 FF FF FF 00`, `02 00 00`, `03 phút16 m_đích24 m_rẽ24 00`, `04 TEXT 00` (chữ hoa ASCII).
 
 ## Lưu ý khi cài đặt trên iOS

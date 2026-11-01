@@ -48,6 +48,7 @@ final class AppModel {
         speedLimits = SpeedLimitService()
         vespa.onTelemetry = { [weak self] t in self?.scooterData(t) }
         vespa.onDataLinkEnded = { [weak self] in self?.scooterLinkEnded() }
+        speedLimits.onLog = { [weak self] text in self?.vespa.note(text) }
         location.onUpdate = { [weak self] loc in self?.handle(loc) }
         location.requestPermission()
         location.setMode(.browsing)
@@ -235,6 +236,8 @@ final class AppModel {
         engine = NavigationEngine(route: route)
         throttle.reset()
         speedLimits.reset()
+        vespa.note(L("Bắt đầu dẫn đường\(simulate ? " (mô phỏng)" : "") — nguồn giới hạn tốc độ: \(speedLimits.source.rawValue)",
+                     "Navigation started\(simulate ? " (simulated)" : "") — speed limit source: \(speedLimits.source.rawValue)"))
         isSimulating = simulate
         phase = .navigating
         // Off by default: the arrows are on the scooter TFT, the phone can stay in a pocket.

@@ -38,6 +38,13 @@ final class CoboTests: XCTestCase {
                                 hasArrived: false, snappedPosition: nil)
         XCTAssertEqual(Cobo.dashPayload(for: s),
                        hex("C6 01 0B 00 00 00 FF FF FF 00 02 00 00 03 00 02 00 05 DC 00 00 C8 00 04 4C 45 20 4C 4F 49 00 06 04 00"))
+        // With the maneuver after it (arrival 1500 m away): tag 01 carries its icon and distance
+        // instead of 00 FF FF FF, which the TFT shows as "…".
+        var then = s
+        then.afterNextManeuver = .arrive
+        then.distanceToAfterNextManeuver = 1500
+        XCTAssertEqual(Cobo.dashPayload(for: then),
+                       hex("C6 01 0B 00 00 C9 00 05 DC 00 02 00 00 03 00 02 00 05 DC 00 00 C8 00 04 4C 45 20 4C 4F 49 00 06 04 00"))
         XCTAssertEqual(Cobo.stopDash.suffix(3), [0x06, 0x03, 0x00])
         XCTAssertFalse(Cobo.idleDash.contains(0x06), "idle dash has no tag 06 (matches the capture)")
     }

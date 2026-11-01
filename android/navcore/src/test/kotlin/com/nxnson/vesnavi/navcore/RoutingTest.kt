@@ -96,6 +96,8 @@ class NavigationEngineTest {
         assertEquals(222.0, s.distanceToManeuver, 3.0)
         assertFalse(s.isOffRoute)
         assertFalse(s.hasArrived)
+        assertEquals(Maneuver.Arrive, s.afterNextManeuver, "then: the arrival")
+        assertEquals(440.0, s.distanceToAfterNextManeuver ?: 0.0, 5.0)
     }
 
     @Test
@@ -115,6 +117,8 @@ class NavigationEngineTest {
         val s = engine.update(p3)
         assertEquals(Maneuver.Arrive, s.maneuver)
         assertEquals(109.0, s.distanceToManeuver, 3.0)
+        assertNull(s.afterNextManeuver, "nothing after the arrival")
+        assertNull(s.distanceToAfterNextManeuver)
     }
 
     @Test
