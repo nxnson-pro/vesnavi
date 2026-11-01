@@ -994,7 +994,8 @@ extension VespaBLE: CBPeripheralManagerDelegate {
     }
 
     /// Every 2 s without a write from the scooter during init: indicate the unanswered step again
-    /// (`CoboServerSession.retryStalledInit`), then report. iOS can't drop a central from the server side.
+    /// (`CoboServerSession.retryStalledInit`), then carry on with dash packets only
+    /// (`proceedWithoutInit`) — or report, if the scooter never asked for the answer.
     private func watchInit() async {
         var seen = serverWrites
         var quietSeconds = 0
@@ -1011,7 +1012,14 @@ extension VespaBLE: CBPeripheralManagerDelegate {
             // Before the scooter's first request there is nothing to resend: report after 8 s as before.
             if again.isEmpty, server.stage == .waitingForRequest, quietSeconds < 8 { continue }
             guard !again.isEmpty else {
-                append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (\(server.stage)) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (\(server.stage)) — cycle the ignition and try again"))
+                if server.proceedWithoutInit() {
+                    // The scooter keeps the link and shows dash packets even so (issue #6): navigate anyway.
+                    append(L("⚠️ Xe không hoàn tất khởi tạo nhưng vẫn giữ link — vẫn gửi dẫn đường (không có thông số động cơ)",
+                             "⚠️ Scooter didn't finish the init but kept the link — sending navigation anyway (no engine data)"))
+                    handle(.ready)
+                } else {
+                    append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (\(server.stage)) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (\(server.stage)) — cycle the ignition and try again"))
+                }
                 return
             }
             append(L("↻ Xe chưa trả lời sau 2 s — gửi lại bước khởi tạo (lần \(server.initRetries)/\(CoboServerSession.maxInitRetries))",

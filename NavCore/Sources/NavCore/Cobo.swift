@@ -238,6 +238,8 @@ public final class CoboServerSession {
     /// Times `retryStalledInit()` re-sent the current init step.
     public private(set) var initRetries = 0
     public static let maxInitRetries = 2
+    /// Ready without the scooter finishing the init (`proceedWithoutInit`): dash packets only, no engine data.
+    public private(set) var initSkipped = false
     private let answer: [UInt8]?
     /// What the phone indicated for the scooter's last init request — re-sent if the scooter goes quiet.
     private var lastInitStep: [[UInt8]] = []
@@ -265,22 +267,28 @@ public final class CoboServerSession {
             case 0x70 where stage == .initializing:
                 out.indications += Cobo.frames(0x01)
                 startInitStep(out.indications)
-            case 0x02 where stage == .initializing:
+            case 0x02 where stage == .initializing || initSkipped:
                 out.indications += Cobo.frames(0x06)
                 out.indications += Cobo.frames(0x10)
-                startInitStep(out.indications)
+                if stage == .initializing { startInitStep(out.indications) }
             case 0x30:
                 // Answer to our 0x27 read: drop it and ask for the next parameter straight away.
                 if let first = pendingReads.first, b.count >= 8, Self.contains(Array(b[6...]), first) {
                     pendingReads.removeFirst()
                     out.indications += readRequestFrames()
                 }
-            case 0x11 where stage == .initializing:
+            case 0x11 where stage == .initializing || initSkipped:
                 // Only once: a re-sent init step can make the scooter repeat its answer.
                 out.indications += Cobo.frames(0x23, Cobo.subscribePayload)
                 out.indications += Cobo.frames(0x28, Cobo.structuredSubscribePayload)
-                stage = .ready
-                out.events.append(.ready)
+                if initSkipped {
+                    // Late finish after `proceedWithoutInit`: engine data and the 0x27 reads after all.
+                    initSkipped = false
+                    pendingReads = Cobo.readIDs
+                } else {
+                    stage = .ready
+                    out.events.append(.ready)
+                }
             default:
                 break
             }
@@ -299,6 +307,18 @@ public final class CoboServerSession {
         guard stage == .initializing, initRetries < Self.maxInitRetries, !lastInitStep.isEmpty else { return [] }
         initRetries += 1
         return lastInitStep
+    }
+
+    /// The scooter stopped answering the init but kept the link open. Seen 2026-11-01: silent after our
+    /// 0x01, yet it showed every dash packet for 7 minutes. Go on with dash packets only (no 0x23/0x28
+    /// engine data, no 0x27 reads); a late 0x02 / 0x11 still completes the init.
+    @discardableResult
+    public func proceedWithoutInit() -> Bool {
+        guard stage == .initializing else { return false }
+        stage = .ready
+        initSkipped = true
+        pendingReads = []
+        return true
     }
 
     private func startInitStep(_ indications: [[UInt8]]) {

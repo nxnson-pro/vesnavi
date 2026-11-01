@@ -1021,7 +1021,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         serverWatchdog = scope.launch { watchInit() }
     }
 
-    /** Every 2 s without a write from the scooter during init: indicate the unanswered step again, then report. */
+    /** Every 2 s without a write from the scooter during init: indicate the unanswered step again, then carry on with dash packets only. */
     private suspend fun watchInit() {
         var seen = serverWrites
         var quietSeconds = 0
@@ -1039,7 +1039,14 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             // Before the scooter's first request there is nothing to resend: report after 8 s.
             if (again.isEmpty() && s.stage == CoboServerSession.Stage.WAITING_FOR_REQUEST && quietSeconds < 8) continue
             if (again.isEmpty()) {
-                append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (${s.stage}) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (${s.stage}) — cycle the ignition and try again"))
+                if (s.proceedWithoutInit()) {
+                    // The scooter keeps the link and shows dash packets even so (issue #6): navigate anyway.
+                    append(L("⚠️ Xe không hoàn tất khởi tạo nhưng vẫn giữ link — vẫn gửi dẫn đường (không có thông số động cơ)",
+                        "⚠️ Scooter didn't finish the init but kept the link — sending navigation anyway (no engine data)"))
+                    handleServer(CoboServerSession.Event.Ready)
+                } else {
+                    append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (${s.stage}) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (${s.stage}) — cycle the ignition and try again"))
+                }
                 return
             }
             append(L("↻ Xe chưa trả lời sau 2 s — gửi lại bước khởi tạo (lần ${s.initRetries}/${CoboServerSession.MAX_INIT_RETRIES})",
