@@ -140,6 +140,11 @@ final class VespaBLE: NSObject, DashboardSink {
     @ObservationIgnored private var serverWatchdog: Task<Void, Never>?
     /// Writes received from the scooter on the data link — the init watchdog's sign of progress.
     @ObservationIgnored private var serverWrites = 0
+    /// A stalled init was already answered with `resetStalledDataLink` (once until the next full init).
+    @ObservationIgnored private var stallResetTried = false
+    /// Waiting for the scooter to drop the stalled link after `resetStalledDataLink`.
+    @ObservationIgnored private var stallResetting = false
+    @ObservationIgnored private var stallResetWatchdog: Task<Void, Never>?
     @ObservationIgnored private var coboStream: Task<Void, Never>?
     @ObservationIgnored private var lastLoggedDash: [UInt8]?
     @ObservationIgnored private var lastCanLog = Date.distantPast
@@ -255,6 +260,8 @@ final class VespaBLE: NSObject, DashboardSink {
         keyRetry?.cancel()
         keyRetry = nil
         keyRejections = 0
+        stallResetTried = false
+        endStallReset()
         if let p = peripheral { central?.cancelPeripheralConnection(p) }
         endServerLink(reconnect: false)
         state = .idle
@@ -581,6 +588,7 @@ final class VespaBLE: NSObject, DashboardSink {
             }
         case .ready:
             state = .ready
+            if server?.initSkipped != true { stallResetTried = false }
             append(L("✅ Màn hình sẵn sàng nhận dẫn đường (PMP2)", "✅ TFT ready for navigation (PMP2)"))
             startCoboStream()
         case .unhandled(let b):
@@ -808,7 +816,8 @@ extension VespaBLE: CBCentralManagerDelegate {
             let rejected = keyReplyPending
             keyReplyPending = false
             guard rejected else {
-                reconnectIfRemembered()
+                // After `resetStalledDataLink` the restart is part of the handshake, even with auto-reconnect off.
+                reconnectIfRemembered(force: stallResetting)
                 return
             }
             retryKeyLinkAfterRejection()
@@ -976,6 +985,7 @@ extension VespaBLE: CBPeripheralManagerDelegate {
         let isCobo = characteristic.uuid == CBUUID(string: Cobo.notifyCharacteristicUUID)
         MainActor.assumeIsolated {
             guard isCobo else { return }
+            endStallReset()
             serverWatchdog?.cancel()
             serverWatchdog = nil
             awaitingScooter = false
@@ -1012,7 +1022,10 @@ extension VespaBLE: CBPeripheralManagerDelegate {
             // Before the scooter's first request there is nothing to resend: report after 8 s as before.
             if again.isEmpty, server.stage == .waitingForRequest, quietSeconds < 8 { continue }
             guard !again.isEmpty else {
-                if server.proceedWithoutInit() {
+                if server.stage == .initializing, !stallResetTried, let id = lastPeripheralID {
+                    stallResetTried = true
+                    resetStalledDataLink(id)
+                } else if server.proceedWithoutInit() {
                     // The scooter keeps the link and shows dash packets even so (issue #6): navigate anyway.
                     append(L("⚠️ Xe không hoàn tất khởi tạo nhưng vẫn giữ link — vẫn gửi dẫn đường (không có thông số động cơ)",
                              "⚠️ Scooter didn't finish the init but kept the link — sending navigation anyway (no engine data)"))
@@ -1026,6 +1039,33 @@ extension VespaBLE: CBPeripheralManagerDelegate {
                      "↻ No answer from the scooter after 2 s — resending the init step (\(server.initRetries)/\(CoboServerSession.maxInitRetries))"))
             for frame in again { indicate(frame) }
         }
+    }
+
+    /// Seen on the scooter (issue #6, 2026-11-01): a data link stalled after our 0x01 recovers when the
+    /// phone opens a key link next to it — the scooter sends no challenge, drops both links ~5 s later,
+    /// and the next full cycle completes the init, engine data included. iOS can't drop the scooter's
+    /// data link from the server side, so this is how the app starts over. A second stall goes on with
+    /// dash packets only (`proceedWithoutInit`).
+    private func resetStalledDataLink(_ id: UUID) {
+        append(L("↻ Xe kẹt khởi tạo — mở link lấy khoá để xe tự ngắt link cũ, rồi làm lại từ đầu",
+                 "↻ Init stalled — opening a key link so the scooter drops the stalled link, then starting over"))
+        endServerLink(reconnect: false)
+        connect(id)
+        stallResetting = true
+        stallResetWatchdog?.cancel()
+        stallResetWatchdog = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 15_000_000_000)
+            guard let self, !Task.isCancelled, self.stallResetting, !self.awaitingScooter, self.server == nil else { return }
+            // The scooter kept the key link open without a challenge: close it, the reconnect starts over.
+            self.append(L("⚠️ Xe chưa ngắt sau 15 s — đóng link lấy khoá và thử lại", "⚠️ Scooter still connected after 15 s — closing the key link and retrying"))
+            if let p = self.peripheral { self.central?.cancelPeripheralConnection(p) }
+        }
+    }
+
+    private func endStallReset() {
+        stallResetting = false
+        stallResetWatchdog?.cancel()
+        stallResetWatchdog = nil
     }
 
     nonisolated func peripheralManager(_ peripheral: CBPeripheralManager, central: CBCentral,
