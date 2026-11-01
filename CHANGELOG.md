@@ -1,10 +1,13 @@
-# VesNavi 0.1.0 — first public beta
+# VesNavi 0.1.1 — public beta
 
 Free navigation that shows turn-by-turn directions on the TFT dashboard of the **Vespa GTS Supertech 300 HPE**, for **iPhone** and **Android**. This is a beta — please try it and report what breaks.
 
 **Install**
 - iPhone (iOS 17+): `VespaNav.ipa` — sideload with Sideloadly, or add the SideStore source `apps.json`. See the README.
 - Android 8.0+: `VesNavi.apk`.
+
+**New in 0.1.1**
+- Steadier PMP2 (GTS Supertech) handshake: when the scooter turns the phone away right after switching on, the app now waits a little longer between tries (2 → 10 s) instead of retrying non-stop, and if the scooter goes quiet in the middle of the start-up exchange the app sends that step again (up to 2 times) instead of waiting for it to drop the link.
 
 **Features**
 - Turn arrow, distance and street name on the TFT; correct roundabout exits; automatic rerouting; simulation mode to try it standing still.
@@ -28,6 +31,9 @@ App dẫn đường **miễn phí** hiện hướng rẽ lên màn hình TFT c�
 **Cài đặt**
 - iPhone (iOS 17 trở lên): `VespaNav.ipa` — cài bằng Sideloadly, hoặc thêm nguồn SideStore `apps.json`. Xem README.
 - Android 8.0 trở lên: `VesNavi.apk`.
+
+**Mới trong 0.1.1**
+- Bắt tay với xe PMP2 (GTS Supertech) ổn định hơn: khi xe vừa bật và từ chối điện thoại, app giãn thời gian thử lại (2 → 10 giây) thay vì thử liên tục; nếu xe im lặng giữa chừng lúc khởi tạo, app gửi lại bước đó (tối đa 2 lần) thay vì chờ xe tự ngắt.
 
 **Tính năng**
 - Mũi tên rẽ, khoảng cách, tên đường trên màn hình xe; vòng xuyến đúng lối ra; tự tìm lại đường khi lệch; chạy thử bằng mô phỏng.

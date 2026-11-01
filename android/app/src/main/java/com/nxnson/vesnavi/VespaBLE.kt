@@ -177,6 +177,13 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     private var indicationInFlight = false
     private var preparedBuffer = mutableListOf<Int>()
     private var serverWatchdog: Job? = null
+    /** Writes received from the scooter on the data link — the init watchdog's sign of progress. */
+    private var serverWrites = 0
+    /** Challenge answered, the scooter's 6-byte answer not in yet. */
+    private var keyReplyPending = false
+    /** Key links the scooter dropped right after our reply, in a row. */
+    private var keyRejections = 0
+    private var keyRetry: Job? = null
     private var coboStream: Job? = null
     private var lastLoggedDash: Bytes? = null
     private var lastCanLog = 0L
@@ -323,6 +330,8 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         userDisconnected = true
         autoConnectOnDiscovery = false
         sppRetry?.cancel()
+        keyRetry?.cancel()
+        keyRejections = 0
         stopSpp()
         closeGatt()
         endServerLink(reconnect = false)
@@ -560,6 +569,22 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         connect(address, autoConnect = true)
     }
 
+    /**
+     * The scooter dropped the key link right after our challenge reply. Seen on the scooter (iPhone) for
+     * the first ~40 s after switching it on; reconnecting at once only hammers it, so wait 2, 4, 8, then 10 s.
+     */
+    private fun retryKeyLinkAfterRejection() {
+        keyRejections++
+        val delaySeconds = minOf(10, 2 shl minOf(keyRejections - 1, 3))
+        append(L("Xe ngắt ngay sau khi trả lời thử thách (lần $keyRejections) — xe có thể vừa bật hoặc đang bận; thử lại sau $delaySeconds s",
+            "Scooter dropped the link right after the challenge reply (${keyRejections}×) — it may have just been switched on or be busy; retrying in $delaySeconds s"))
+        keyRetry?.cancel()
+        keyRetry = scope.launch {
+            delay(delaySeconds * 1_000L)
+            reconnectIfRemembered()
+        }
+    }
+
     private fun isDash(b: Bytes) = b.size > 6 && b.first() == PMP3.DASH_TAG
 
     private fun isLikelyVespa(name: String, services: List<String>): Boolean {
@@ -614,6 +639,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                     return@post
                 }
                 if (newState == BluetoothProfile.STATE_CONNECTED) {
+                    keyRetry?.cancel()
                     connectedName = runCatching { g.device.name }.getOrNull()
                     changeState(LinkState.DISCOVERING)
                     resetCentralLink()
@@ -633,7 +659,8 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                     }
                     append(L("Mất kết nối (mã $status)", "Disconnected (status $status)"))
                     changeState(LinkState.IDLE)
-                    reconnectIfRemembered()
+                    if (keyReplyPending) retryKeyLinkAfterRejection() else reconnectIfRemembered()
+                    keyReplyPending = false
                 }
             }
         }
@@ -797,8 +824,11 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                 val type = if (noResp) BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE else BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
                 append(L("TX ${Hex.encode(event.reply)} — trả lời thử thách, chờ xe gửi câu trả lời 6 byte", "TX ${Hex.encode(event.reply)} — challenge reply, waiting for the 6-byte answer"))
                 if (!write(g, c, event.reply, type)) append(L("⚠️ Ghi trả lời thất bại", "⚠️ Reply write failed"))
+                keyReplyPending = true
             }
             is CoboKeyFetch.Event.Answer -> {
+                keyReplyPending = false
+                keyRejections = 0
                 coboAnswer = event.bytes
                 logSecrets.add(event.bytes)
                 append(L("🔑 Link lấy khoá: nhận câu trả lời ${Hex.encode(event.bytes)}", "🔑 Key link: answer ${Hex.encode(event.bytes)}"))
@@ -988,12 +1018,33 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         if (state != LinkState.READY) changeState(LinkState.HANDSHAKING)
         append(L("Xe đã kết nối vào điện thoại (link dữ liệu)", "Scooter connected to the phone (data link)"))
         pumpIndications()
-        serverWatchdog = scope.launch {
-            delay(8_000)
-            val s = serverSession ?: return@launch
-            if (s.stage != CoboServerSession.Stage.READY) {
-                append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (${s.stage}) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (${s.stage}) — cycle the ignition and try again"))
+        serverWatchdog = scope.launch { watchInit() }
+    }
+
+    /** Every 2 s without a write from the scooter during init: indicate the unanswered step again, then report. */
+    private suspend fun watchInit() {
+        var seen = serverWrites
+        var quietSeconds = 0
+        while (true) {
+            delay(2_000)
+            val s = serverSession ?: return
+            if (s.stage == CoboServerSession.Stage.READY) return
+            if (serverWrites != seen) {
+                seen = serverWrites
+                quietSeconds = 0
+                continue
             }
+            quietSeconds += 2
+            val again = s.retryStalledInit()
+            // Before the scooter's first request there is nothing to resend: report after 8 s.
+            if (again.isEmpty() && s.stage == CoboServerSession.Stage.WAITING_FOR_REQUEST && quietSeconds < 8) continue
+            if (again.isEmpty()) {
+                append(L("⚠️ Xe dừng giữa chừng khi khởi tạo (${s.stage}) — tắt/bật chìa khoá xe rồi thử lại", "⚠️ Scooter stopped during init (${s.stage}) — cycle the ignition and try again"))
+                return
+            }
+            append(L("↻ Xe chưa trả lời sau 2 s — gửi lại bước khởi tạo (lần ${s.initRetries}/${CoboServerSession.MAX_INIT_RETRIES})",
+                "↻ No answer from the scooter after 2 s — resending the init step (${s.initRetries}/${CoboServerSession.MAX_INIT_RETRIES})"))
+            again.forEach(::indicate)
         }
     }
 
@@ -1004,6 +1055,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     }
 
     private fun serverWrite(device: BluetoothDevice, bytes: Bytes) {
+        serverWrites++
         if (scooterDevice == null) scooterDevice = device
         val s = serverSession ?: CoboServerSession(coboAnswer).also { serverSession = it }
         val out = s.handleWrite(bytes)
