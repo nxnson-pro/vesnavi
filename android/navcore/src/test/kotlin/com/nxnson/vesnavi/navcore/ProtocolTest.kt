@@ -53,6 +53,13 @@ class CoboTest {
             hex("C6 01 0B 00 00 00 FF FF FF 00 02 00 00 03 00 02 00 05 DC 00 00 C8 00 04 4C 45 20 4C 4F 49 00 06 04 00"),
             Cobo.dashPayload(s),
         )
+        // With the maneuver after it (arrival 1500 m away): tag 01 carries its icon and distance
+        // instead of 00 FF FF FF, which the TFT shows as "…".
+        val then = s.copy(afterNextManeuver = Maneuver.Arrive, distanceToAfterNextManeuver = 1500.0)
+        assertEquals(
+            hex("C6 01 0B 00 00 C9 00 05 DC 00 02 00 00 03 00 02 00 05 DC 00 00 C8 00 04 4C 45 20 4C 4F 49 00 06 04 00"),
+            Cobo.dashPayload(then),
+        )
         assertEquals(listOf(0x06, 0x03, 0x00), Cobo.stopDash.takeLast(3))
         assertFalse(0x06 in Cobo.idleDash, "idle dash has no tag 06")
     }

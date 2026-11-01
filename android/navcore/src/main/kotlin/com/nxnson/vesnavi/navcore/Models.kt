@@ -86,4 +86,10 @@ data class NavigationState(
     val segmentIndex: Int = 0,
     /** The street the rider is on now (`streetName` is the one after the next turn). */
     val currentStreetName: String? = null,
+    /** The maneuver after the next one (the TFT's small "then" arrow); null when the next one is the arrival. */
+    val afterNextManeuver: Maneuver? = null,
+    /** See [RouteStep.exitTurnDegrees], for [afterNextManeuver]. */
+    val afterNextRoundaboutTurnDegrees: Double? = null,
+    /** Meters from here to [afterNextManeuver]. */
+    val distanceToAfterNextManeuver: Double? = null,
 )

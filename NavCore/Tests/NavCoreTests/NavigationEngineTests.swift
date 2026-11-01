@@ -11,6 +11,8 @@ final class NavigationEngineTests: XCTestCase {
         XCTAssertEqual(s.distanceToManeuver, 222, accuracy: 3)
         XCTAssertFalse(s.isOffRoute)
         XCTAssertFalse(s.hasArrived)
+        XCTAssertEqual(s.afterNextManeuver, .arrive, "then: the arrival")
+        XCTAssertEqual(s.distanceToAfterNextManeuver ?? 0, 440, accuracy: 5)
     }
 
     func testDistanceShrinksAndSnapsSlightlyOffLine() {
@@ -29,6 +31,8 @@ final class NavigationEngineTests: XCTestCase {
         let s = engine.update(location: Fixtures.p3)
         XCTAssertEqual(s.maneuver, .arrive)
         XCTAssertEqual(s.distanceToManeuver, 109, accuracy: 3)
+        XCTAssertNil(s.afterNextManeuver, "nothing after the arrival")
+        XCTAssertNil(s.distanceToAfterNextManeuver)
     }
 
     func testOffRouteNeedsConsecutiveFixes() {

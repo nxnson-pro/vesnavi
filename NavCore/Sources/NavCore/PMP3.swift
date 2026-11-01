@@ -104,10 +104,14 @@ public enum PMP3 {
 
     /// Like `icon(for: Maneuver)`, but roundabouts get the pictogram of the actual exit direction.
     public static func icon(for state: NavigationState) -> UInt8 {
-        if case .roundabout = state.maneuver, let d = state.roundaboutTurnDegrees {
+        icon(for: state.maneuver, roundaboutTurnDegrees: state.roundaboutTurnDegrees)
+    }
+
+    public static func icon(for maneuver: Maneuver, roundaboutTurnDegrees: Double?) -> UInt8 {
+        if case .roundabout = maneuver, let d = roundaboutTurnDegrees {
             return RouteAnnotator.roundaboutIcon(turnDegrees: d)
         }
-        return icon(for: state.maneuver)
+        return icon(for: maneuver)
     }
 
     /// How the road-name field (tag 4) is prefixed; depends on the scooter model.

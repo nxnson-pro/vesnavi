@@ -23,6 +23,8 @@ final class SpeedLimitService {
     @ObservationIgnored private var lastQueryPoint: Coordinate?
     @ObservationIgnored private var lastStreet: String?
     @ObservationIgnored private var inFlight = false
+    /// Lookup outcomes for the Bluetooth log (bug reports): changes of the limit and failures, no positions.
+    @ObservationIgnored var onLog: ((String) -> Void)?
 
     /// Ask again after this distance, or when the street changes.
     static let requeryMeters = 250.0
@@ -70,24 +72,51 @@ final class SpeedLimitService {
         lastQueryPoint = p
         lastStreet = street
         Task { [weak self] in
-            let result = await Self.query(p, street: street, vietnamDefaults: vietnamDefaults)
+            let (result, problem) = await Self.query(p, street: street, vietnamDefaults: vietnamDefaults)
             guard let self else { return }
             self.inFlight = false
-            // Keep the previous value when the lookup failed (no network): limits rarely change.
-            if let result { self.current = result } else if streetChanged { self.current = nil }
+            if let result {
+                if result.kmh != self.current?.kmh || result.estimated != self.current?.estimated {
+                    self.onLog?(L("Giới hạn tốc độ: \(result.kmh) km/h\(result.estimated ? " (ước tính)" : "")",
+                                  "Speed limit: \(result.kmh) km/h\(result.estimated ? " (estimated)" : "")"))
+                }
+                self.current = result
+            } else {
+                self.onLog?(L("⚠️ Không tra được giới hạn tốc độ: \(problem)", "⚠️ No speed limit: \(problem)"))
+                // Keep the previous value when the lookup failed (no network): limits rarely change.
+                if streetChanged { self.current = nil }
+            }
         }
     }
 
-    private static func query(_ p: Coordinate, street: String?, vietnamDefaults: Bool) async -> SpeedLimitResult? {
+    /// The limit, or why there is none (for the log).
+    private static func query(_ p: Coordinate, street: String?, vietnamDefaults: Bool) async -> (SpeedLimitResult?, String) {
+        var problems: [String] = []
         for endpoint in SpeedLimitResolver.overpassEndpoints {
             let url = SpeedLimitResolver.overpassURL(at: p, endpoint: endpoint)
             var request = URLRequest(url: url, timeoutInterval: 10)
             request.setValue("VesNavi/1.0 (personal iOS app)", forHTTPHeaderField: "User-Agent")
-            guard let reply = try? await URLSession.shared.data(for: request),
-                  (reply.1 as? HTTPURLResponse)?.statusCode == 200,
-                  let ways = try? SpeedLimitResolver.parseOverpass(reply.0) else { continue }
-            return SpeedLimitResolver.resolve(ways, street: street, vietnamDefaults: vietnamDefaults)
+            let host = endpoint.host ?? "?"
+            let reply: (Data, URLResponse)
+            do {
+                reply = try await URLSession.shared.data(for: request)
+            } catch {
+                problems.append("\(host): \((error as? URLError)?.code.rawValue.description ?? "error") \(error.localizedDescription)")
+                continue
+            }
+            let status = (reply.1 as? HTTPURLResponse)?.statusCode ?? 0
+            guard status == 200 else {
+                problems.append("\(host): HTTP \(status)")
+                continue
+            }
+            guard let ways = try? SpeedLimitResolver.parseOverpass(reply.0) else {
+                problems.append("\(host): " + L("dữ liệu lạ", "unreadable reply"))
+                continue
+            }
+            if let r = SpeedLimitResolver.resolve(ways, street: street, vietnamDefaults: vietnamDefaults) { return (r, "") }
+            return (nil, L("không có đường xe máy trong \(ways.count) đường quanh 20 m, hoặc đường không ghi tốc độ",
+                           "no rideable road among \(ways.count) ways within 20 m, or no tagged limit"))
         }
-        return nil
+        return (nil, problems.joined(separator: "; "))
     }
 }

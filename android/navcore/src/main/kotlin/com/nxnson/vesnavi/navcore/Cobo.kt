@@ -125,9 +125,19 @@ object Cobo {
         text: String,
         navigating: Boolean = true,
         speedLimit: Int = 0,
+        afterNextIcon: Int? = null,
+        distanceToAfterNext: Int? = null,
     ): Bytes {
         val p = mutableListOf(PMP3.DASH_TAG)
-        p += listOf(0x01, icon, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x00)
+        // Tag 01: icon, roundabout exit number, 00, then the maneuver after it + its distance (24-bit).
+        // Without one: 00 + FF FF FF — the TFT then shows "…" in that corner.
+        p += listOf(0x01, icon, 0x00, 0x00)
+        p += if (afterNextIcon != null && distanceToAfterNext != null) {
+            listOf(afterNextIcon) + PMP3.be24(distanceToAfterNext)
+        } else {
+            listOf(0x00, 0xFF, 0xFF, 0xFF)
+        }
+        p += 0x00
         // Tag 02: speed limit in km/h, 0 = none.
         p += listOf(0x02, max(0, min(speedLimit, 250)), 0x00)
         p += 0x03
@@ -194,6 +204,8 @@ object Cobo {
             minutesToDestination = max(1, ceil(state.remainingDuration / 60).toInt()),
             text = dashText(state, language),
             speedLimit = state.speedLimit ?: 0,
+            afterNextIcon = state.afterNextManeuver?.let { PMP3.icon(it, state.afterNextRoundaboutTurnDegrees) },
+            distanceToAfterNext = state.distanceToAfterNextManeuver?.let { max(1, it.roundToInt()) },
         )
     }
 

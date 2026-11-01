@@ -102,4 +102,10 @@ public struct NavigationState: Equatable, Sendable {
     public var segmentIndex: Int = 0
     /// The street the rider is on now (`streetName` is the one after the next turn).
     public var currentStreetName: String? = nil
+    /// The maneuver after the next one (the TFT's small "then" arrow); nil when the next one is the arrival.
+    public var afterNextManeuver: Maneuver? = nil
+    /// See `RouteStep.exitTurnDegrees`, for `afterNextManeuver`.
+    public var afterNextRoundaboutTurnDegrees: Double? = nil
+    /// Meters from here to `afterNextManeuver`.
+    public var distanceToAfterNextManeuver: Double? = nil
 }

@@ -87,7 +87,22 @@ public final class NavigationEngine {
         state.segmentIndex = segment
         state.currentStreetName = route.steps.last { cumulative[$0.pointIndex] <= along + 1 }?.streetName
         state.speedLimit = route.speedLimits.first { $0.from <= segment && segment < max($0.to, $0.from + 1) }?.kmh
+        if !hasArrived, let after = step(after: next) {
+            state.afterNextManeuver = after.maneuver
+            state.afterNextRoundaboutTurnDegrees = after.exitTurnDegrees
+            state.distanceToAfterNextManeuver = max(0, cumulative[after.pointIndex] - along)
+        }
         return state
+    }
+
+    /// The maneuver following `current` (skipping depart), the arrival last; nil after the arrival.
+    private func step(after current: RouteStep) -> RouteStep? {
+        guard current.maneuver != .arrive else { return nil }
+        let at = cumulative[current.pointIndex]
+        for step in route.steps where step.maneuver != .depart {
+            if cumulative[step.pointIndex] > at + 1 { return step }
+        }
+        return nil
     }
 
     /// First maneuver strictly ahead of `along` (skipping depart); falls back to arrival.

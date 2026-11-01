@@ -1,10 +1,14 @@
-# VesNavi 0.1.3 — public beta
+# VesNavi 0.1.4 — public beta
 
 Free navigation that shows turn-by-turn directions on the TFT dashboard of the **Vespa GTS Supertech 300 HPE**, for **iPhone** and **Android**. This is a beta — please try it and report what breaks.
 
 **Install**
 - iPhone (iOS 17+): `VespaNav.ipa` — sideload with Sideloadly, or add the SideStore source `apps.json`. See the README.
 - Android 8.0+: `VesNavi.apk`.
+
+**New in 0.1.4**
+- The TFT now shows the turn after the next one (small arrow + distance on the right) instead of "…".
+- The Bluetooth log now says which speed-limit source is used and why a limit is missing (for example the map server not answering), so a bug report shows why no sign appears on the TFT.
 
 **New in 0.1.3**
 - iPhone: when the scooter gets stuck in the middle of the start-up exchange, the app now starts the connection over by itself (the same as tapping Disconnect, then Connect). Seen on a GTS Supertech: the second try completes normally, engine data included. If it gets stuck again, the app carries on with navigation only (0.1.2).
@@ -37,6 +41,10 @@ App dẫn đường **miễn phí** hiện hướng rẽ lên màn hình TFT c�
 **Cài đặt**
 - iPhone (iOS 17 trở lên): `VespaNav.ipa` — cài bằng Sideloadly, hoặc thêm nguồn SideStore `apps.json`. Xem README.
 - Android 8.0 trở lên: `VesNavi.apk`.
+
+**Mới trong 0.1.4**
+- Màn hình xe hiện hướng rẽ sau hướng kế tiếp (mũi tên nhỏ + khoảng cách bên phải) thay vì "…".
+- Log Bluetooth ghi nguồn giới hạn tốc độ đang dùng và lý do không có giới hạn (ví dụ máy chủ bản đồ không trả lời), để báo lỗi cho biết vì sao màn hình xe không hiện biển tốc độ.
 
 **Mới trong 0.1.3**
 - iPhone: khi xe kẹt giữa chừng lúc khởi tạo, app tự kết nối lại từ đầu (giống bấm Ngắt rồi Kết nối). Đã thấy trên GTS Supertech: lần thử thứ hai chạy trọn vẹn, có cả thông số động cơ. Nếu vẫn kẹt, app vẫn gửi dẫn đường như 0.1.2.
