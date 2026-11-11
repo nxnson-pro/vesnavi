@@ -37,6 +37,7 @@ import androidx.core.content.ContextCompat
 import com.nxnson.vesnavi.navcore.BugReport
 import com.nxnson.vesnavi.navcore.Bytes
 import com.nxnson.vesnavi.navcore.Cobo
+import com.nxnson.vesnavi.navcore.CoboClockSync
 import com.nxnson.vesnavi.navcore.CoboKeyFetch
 import com.nxnson.vesnavi.navcore.CoboServerSession
 import com.nxnson.vesnavi.navcore.CoboTelemetry
@@ -57,6 +58,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
@@ -186,6 +188,8 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     private var keyRetry: Job? = null
     private var coboStream: Job? = null
     private var lastLoggedDash: Bytes? = null
+    /** Clock setting of this data link (null = none asked for). */
+    private var clockSync: CoboClockSync? = null
     private var lastCanLog = 0L
 
     private var lastDash: Bytes? = null
@@ -1090,6 +1094,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             CoboServerSession.Event.Ready -> {
                 changeState(LinkState.READY)
                 append(L("✅ Màn hình sẵn sàng nhận dẫn đường (PMP2)", "✅ TFT ready for navigation (PMP2)"))
+                clockSync = if (settings.clockSync) CoboClockSync() else null
                 startCoboStream()
             }
             is CoboServerSession.Event.Unhandled -> append(L("(chưa xử lý) ${Hex.encode(event.bytes)}", "(unhandled) ${Hex.encode(event.bytes)}"))
@@ -1152,6 +1157,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                     }
                     else -> indicate(lastDash ?: idleDashPacket())
                 }
+                stepClockSync(::indicate)
                 // A lost confirmation must not stall the link forever.
                 if (indicationInFlight && tick % 4 == 3) indicationInFlight = false
                 tick++
@@ -1225,6 +1231,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         indicationInFlight = false
         preparedBuffer = mutableListOf()
         coboAnswer = null
+        clockSync = null
         lastLoggedDash = null
         telemetry = null
         latestTelemetry = null
@@ -1279,6 +1286,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
             peakRPM = 0
             changeState(LinkState.READY)
             append(L("✅ Màn hình sẵn sàng nhận dẫn đường (PMP2 qua SPP)", "✅ TFT ready for navigation (PMP2 over SPP)"))
+            clockSync = if (settings.clockSync) CoboClockSync() else null
             startSppStream()
         }
 
@@ -1317,6 +1325,45 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
     }
 
     /** Dash every ~0.5 s like the BLE data link; the pop-up replaces it for a few packets. */
+    /** One step of the clock setting per stream tick, next to the dash packet (never instead of it). */
+    private fun stepClockSync(send: (Bytes) -> Unit) {
+        val sync = clockSync ?: return
+        if (sync.isDone) return
+        val now = Calendar.getInstance()
+        val hour = now.get(Calendar.HOUR_OF_DAY)
+        val minute = now.get(Calendar.MINUTE)
+        val frames = sync.tick(hour, minute, now.get(Calendar.SECOND))
+        if (frames.isEmpty()) return
+        if (sync.sent == 1) {
+            append(L("🕒 Chỉnh giờ xe: đồng hồ xe ${clockText(latestTelemetry)} → điện thoại ${clockText(hour, minute)}",
+                "🕒 Setting the scooter clock: scooter ${clockText(latestTelemetry)} → phone ${clockText(hour, minute)}"))
+        }
+        frames.forEach(send)
+        if (!sync.isDone) return
+        // The TFT reports its clock in the engine data: say whether it took the new time.
+        scope.launch {
+            delay(3_000)
+            if (state != LinkState.READY) return@launch
+            val phone = Calendar.getInstance()
+            val t = latestTelemetry
+            val h = t?.clockHour
+            val m = t?.clockMinute
+            if (h == null || m == null) {
+                append(L("🕒 Đã gửi giờ; chưa có dữ liệu đồng hồ từ xe để kiểm tra", "🕒 Time sent; no clock data from the scooter to check it"))
+            } else if (h == phone.get(Calendar.HOUR_OF_DAY) && m == phone.get(Calendar.MINUTE)) {
+                append(L("🕒 ✅ Đồng hồ xe đã khớp điện thoại: ${clockText(h, m)}", "🕒 ✅ Scooter clock matches the phone: ${clockText(h, m)}"))
+            } else {
+                append(L("🕒 ⚠️ Đồng hồ xe vẫn là ${clockText(h, m)} — màn hình này có thể không nhận lệnh chỉnh giờ",
+                    "🕒 ⚠️ Scooter clock still shows ${clockText(h, m)} — this TFT may not take the clock setting"))
+            }
+        }
+    }
+
+    private fun clockText(hour: Int?, minute: Int?): String =
+        if (hour == null || minute == null) "--:--" else "%02d:%02d".format(hour, minute)
+
+    private fun clockText(t: ScooterTelemetry?): String = clockText(t?.clockHour, t?.clockMinute)
+
     private fun startSppStream() {
         sppStream?.cancel()
         sppStream = scope.launch {
@@ -1341,6 +1388,10 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
                     append("TX dash ${Hex.encode(packet)}")
                 }
                 link.write(packet)
+                stepClockSync { frame ->
+                    append("TX ${Hex.encode(frame)}")
+                    link.write(frame)
+                }
                 delay(500)
             }
         }
@@ -1361,6 +1412,7 @@ class VespaBLE(private val context: Context, private val settings: Settings, pri
         popupTicksLeft = 0
         stopDashPending = false
         lowChargeSince = null
+        clockSync = null
         lastLoggedDash = null
         connectedName = null
         if (state in setOf(LinkState.CONNECTING, LinkState.HANDSHAKING, LinkState.READY)) changeState(LinkState.IDLE)

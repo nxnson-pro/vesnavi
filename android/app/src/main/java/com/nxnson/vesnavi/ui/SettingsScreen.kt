@@ -75,6 +75,16 @@ fun SettingsScreen(model: AppModel, nav: Navigator) {
             }
 
             Group(
+                L("Đồng hồ xe (thử nghiệm)", "Scooter clock (experimental)"),
+                L(
+                    "Mỗi lần kết nối, app đặt đồng hồ trên màn hình xe theo giờ điện thoại, vào đầu phút kế tiếp. Chỉ dành cho màn hình TFT của Vespa GTS / Primavera kết nối kiểu \"BT ROUTER\"; chưa kiểm chứng trên xe — đừng bật với dòng xe khác.",
+                    "On every connection the app sets the clock on the scooter display from the phone's time, at the start of the next minute. Only for the TFT of the Vespa GTS / Primavera that connects as \"BT ROUTER\"; not verified on a scooter yet — leave it off on other models.",
+                ),
+            ) {
+                Toggle(L("Tự chỉnh giờ xe theo điện thoại", "Set the scooter clock from the phone"), s.clockSync) { s.clockSync = it }
+            }
+
+            Group(
                 L("Tìm đường", "Routing"),
                 L(
                     "Mặc định dùng OSRM (miễn phí, không cần key). Có key GraphHopper (đăng ký miễn phí ≈500 lượt/ngày) thì dùng GraphHopper, lỗi hoặc hết lượt sẽ tự quay về OSRM. Gói miễn phí chỉ có kiểu Ô tô (đi đúng đường một chiều, phù hợp xe máy).",

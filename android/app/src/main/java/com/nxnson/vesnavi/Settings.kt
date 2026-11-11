@@ -96,6 +96,15 @@ class Settings(context: Context) {
         get() = warningsState.value
         set(v) { warningsState.value = v; prefs.edit().putBoolean("vespaWarnings", v).apply() }
 
+    private val clockSyncState = bool("vespaClockSync", false)
+    /**
+     * Set the TFT clock from the phone on every connection (PMP2 link only). Off unless the rider asks:
+     * it writes to the scooter's CAN bus and only some TFTs understand it.
+     */
+    var clockSync: Boolean
+        get() = clockSyncState.value
+        set(v) { clockSyncState.value = v; prefs.edit().putBoolean("vespaClockSync", v).apply() }
+
     fun pairing(address: String): String? = prefs.getString("vespaPairing.$address", null)
     fun setPairing(address: String, json: String?) = prefs.edit().putString("vespaPairing.$address", json).apply()
 }

@@ -113,6 +113,39 @@ object Cobo {
     fun readRequestPayload(id: Bytes): Bytes = listOf(0x01, 0x04, 0x09, 0x00, 0x00) + id + listOf(0x55, 0x55, 0x55, 0x55, 0x55)
 
     /**
+     * 0x27 is a write of one value: `01`, the value's number, the length, the data. Number 0x04 is the
+     * read request above; number 0x0B puts one CAN frame on the scooter's bus: id (32 bits, low byte
+     * first), data length, 8 data bytes.
+     */
+    fun canFramePayload(id: Long, data: Bytes): Bytes {
+        val padded = data.take(8) + List(max(0, 8 - data.size)) { 0xFF }
+        return listOf(
+            0x01, 0x0B, 0x0D,
+            (id and 0xFF).toInt(), ((id shr 8) and 0xFF).toInt(), ((id shr 16) and 0xFF).toInt(), ((id shr 24) and 0xFF).toInt(),
+            min(data.size, 8),
+        ) + padded
+    }
+
+    /**
+     * CAN id the TFT of the GTS / Primavera (PMP2 generation) reads the phone's time from.
+     * On other dashboards the same id means something else — never send it unasked.
+     */
+    const val CLOCK_CAN_ID = 0x600L
+
+    /**
+     * Sets the TFT clock (hours 0–23, minutes; the TFT has no seconds): byte 3 = minutes × 2 + 1
+     * (bit 0 = "set the clock"), byte 4 = hours. Not seen in the owner's capture, untested on a scooter.
+     */
+    fun clockSetFrames(hour: Int, minute: Int): List<Bytes> {
+        val m = minute.coerceIn(0, 59)
+        val h = hour.coerceIn(0, 23)
+        return frames(0x27, canFramePayload(CLOCK_CAN_ID, listOf(0, 0, 0, (m shl 1) or 1, h, 0, 0, 0)))
+    }
+
+    /** Ends the clock setting: the same CAN frame, all zero. */
+    val clockSetEndFrames: List<Bytes> get() = frames(0x27, canFramePayload(CLOCK_CAN_ID, List(8) { 0 }))
+
+    /**
      * 0xC6 dash payload: tags 01, 02, 03 and 04 are always present.
      * `navigating` appends tag `06 04 00` ("navigation running"), needed on every packet while a route
      * is active on the GTS Supertech — without it the TFT keeps its normal screen and ignores the arrow.
@@ -381,4 +414,29 @@ class CoboServerSession(private val answer: Bytes?) {
 
     private fun contains(haystack: Bytes, needle: Bytes): Boolean =
         haystack.size >= needle.size && (0..haystack.size - needle.size).any { haystack.subList(it, it + needle.size) == needle }
+}
+
+/**
+ * Sets the TFT clock from the phone once per data link: the clock frame 4 times, then the all-zero
+ * frame 4 times, one per tick (~0.5 s). Starts in the first seconds of a minute, so a TFT that
+ * restarts its minute on setting ends up in step with the phone.
+ */
+class CoboClockSync {
+    /** Frames sent so far (0…[REPEATS] × 2). */
+    var sent = 0
+        private set
+    val isDone get() = sent >= REPEATS * 2
+    val isRunning get() = sent > 0 && !isDone
+
+    /** Call on every tick with the phone's local time; returns the frames to send now. */
+    fun tick(hour: Int, minute: Int, second: Int): List<Bytes> {
+        if (sent == 0 && second > 2) return emptyList()
+        if (isDone) return emptyList()
+        sent++
+        return if (sent <= REPEATS) Cobo.clockSetFrames(hour, minute) else Cobo.clockSetEndFrames
+    }
+
+    companion object {
+        const val REPEATS = 4
+    }
 }

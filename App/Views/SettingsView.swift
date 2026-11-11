@@ -55,6 +55,14 @@ struct SettingsView: View {
                 }
 
                 Section {
+                    Toggle(isOn: $ble.clockSyncEnabled) {
+                        Label(L("Tự chỉnh giờ xe theo điện thoại", "Set the scooter clock from the phone"), systemImage: "clock.arrow.2.circlepath")
+                    }
+                } footer: {
+                    Text(L("Mỗi lần kết nối, app đặt đồng hồ trên màn hình xe theo giờ điện thoại, vào đầu phút kế tiếp. Chỉ dành cho màn hình TFT của Vespa GTS / Primavera kết nối kiểu \"BT ROUTER\"; chưa kiểm chứng trên xe — đừng bật với dòng xe khác.", "On every connection the app sets the clock on the scooter display from the phone's time, at the start of the next minute. Only for the TFT of the Vespa GTS / Primavera that connects as \"BT ROUTER\"; not verified on a scooter yet — leave it off on other models."))
+                }
+
+                Section {
                     Picker(selection: $graphHopperProfile) {
                         Text(L("Ô tô (gói miễn phí)", "Car (free plan)")).tag("car")
                         Text(L("Xe tay ga (gói trả phí)", "Scooter (paid plan)")).tag("scooter")

@@ -1,0 +1,10 @@
+// Signing for running the app from Xcode on your own Mac. CI builds unsigned and needs none of it.
+//
+// Put your own values in Config/Local.xcconfig (not committed):
+//
+//   DEVELOPMENT_TEAM = ABCDE12345
+//   VESNAVI_BUNDLE_ID = com.yourname.vesnavi   // only if Xcode says the default one is taken
+//
+// scripts/save-signing.sh writes that file from the Team picked once in Xcode.
+CODE_SIGN_STYLE = Automatic
+#include? "Local.xcconfig"

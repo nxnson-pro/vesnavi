@@ -2,6 +2,9 @@
 *.xcodeproj/
 App/Info.plist
 
+# Your own signing Team for running from Xcode (see Config/Signing.xcconfig)
+Config/Local.xcconfig
+
 # Build output
 build/
 DerivedData/
