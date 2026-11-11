@@ -109,6 +109,17 @@ final class VespaBLE: NSObject, DashboardSink {
         }
     }
 
+    /// Set the TFT clock from the phone on every connection (PMP2 link only; see `Cobo.clockSetFrames`).
+    private var clockSyncEnabledValue: Bool
+    var clockSyncEnabled: Bool {
+        get { clockSyncEnabledValue }
+        set {
+            clockSyncEnabledValue = newValue
+            UserDefaults.standard.set(newValue, forKey: Keys.clockSync)
+            if newValue, server?.stage == .ready, clockSync == nil { clockSync = CoboClockSync() }
+        }
+    }
+
     var isReady: Bool { state == .ready }
     var isConnected: Bool { [.discovering, .handshaking, .waitingForScooter, .ready, .unknownService].contains(state) }
 
@@ -147,6 +158,8 @@ final class VespaBLE: NSObject, DashboardSink {
     @ObservationIgnored private var stallResetWatchdog: Task<Void, Never>?
     @ObservationIgnored private var coboStream: Task<Void, Never>?
     @ObservationIgnored private var lastLoggedDash: [UInt8]?
+    /// Clock setting of this data link (nil = none asked for).
+    @ObservationIgnored private var clockSync: CoboClockSync?
     @ObservationIgnored private var lastCanLog = Date.distantPast
 
     @ObservationIgnored private var lastDash: [UInt8]?
@@ -178,6 +191,7 @@ final class VespaBLE: NSObject, DashboardSink {
         static let autoReconnect = "vespaAutoReconnect"
         static let idleDisplay = "vespaIdleDisplay"
         static let warnings = "vespaWarnings"
+        static let clockSync = "vespaClockSync"
         static func pairing(_ id: UUID) -> String { "vespaPairing.\(id.uuidString)" }
     }
 
@@ -186,6 +200,8 @@ final class VespaBLE: NSObject, DashboardSink {
         idleDisplayValue = UserDefaults.standard.string(forKey: Keys.idleDisplay)
             .map { $0 == "off" ? IdleDisplay.off : .text } ?? .off
         warningsEnabledValue = UserDefaults.standard.object(forKey: Keys.warnings) as? Bool ?? true
+        // Off unless the rider asks: it writes to the scooter's CAN bus and only some TFTs understand it.
+        clockSyncEnabledValue = UserDefaults.standard.bool(forKey: Keys.clockSync)
         super.init()
         // Only touch CoreBluetooth (and trigger the permission prompt) once the rider has paired before.
         if UserDefaults.standard.string(forKey: Keys.lastPeripheral) != nil { ensureCentral() }
@@ -593,6 +609,7 @@ final class VespaBLE: NSObject, DashboardSink {
             state = .ready
             if server?.initSkipped != true { stallResetTried = false }
             append(L("✅ Màn hình sẵn sàng nhận dẫn đường (PMP2)", "✅ TFT ready for navigation (PMP2)"))
+            clockSync = clockSyncEnabled ? CoboClockSync() : nil
             startCoboStream()
         case .unhandled(let b):
             append(L("(chưa xử lý) \(Hex.encode(b))", "(unhandled) \(Hex.encode(b))"))
@@ -624,11 +641,59 @@ final class VespaBLE: NSObject, DashboardSink {
                 } else {
                     self.indicate(self.lastDash ?? self.idleDashPacket())
                 }
+                self.stepClockSync()
                 tick += 1
                 try? await Task.sleep(nanoseconds: 500_000_000)
             }
         }
     }
+
+    /// Lab / settings: set the TFT clock now, whatever the automatic setting says.
+    func syncClockNow() {
+        guard server?.stage == .ready else {
+            append(L("⚠️ Chỉnh giờ chỉ gửi được khi xe ✅ Sẵn sàng (PMP2)", "⚠️ The clock can only be set while the scooter is ✅ Ready (PMP2)"))
+            return
+        }
+        clockSync = CoboClockSync()
+        append(L("🕒 Sẽ chỉnh giờ xe ở đầu phút tới", "🕒 Setting the scooter clock at the start of the next minute"))
+    }
+
+    /// One step of the clock setting per stream tick, next to the dash packet (never instead of it).
+    private func stepClockSync() {
+        guard var sync = clockSync, !sync.isDone else { return }
+        let now = Calendar.current.dateComponents([.hour, .minute, .second], from: Date())
+        let frames = sync.tick(hour: now.hour ?? 0, minute: now.minute ?? 0, second: now.second ?? 0)
+        clockSync = sync
+        guard !frames.isEmpty else { return }
+        if sync.sent == 1 {
+            append(L("🕒 Chỉnh giờ xe: đồng hồ xe \(Self.clockText(latestTelemetry)) → điện thoại \(Self.clockText(now.hour, now.minute))",
+                     "🕒 Setting the scooter clock: scooter \(Self.clockText(latestTelemetry)) → phone \(Self.clockText(now.hour, now.minute))"))
+        }
+        for frame in frames { indicate(frame) }
+        guard sync.isDone else { return }
+        // The TFT reports its clock in the engine data: say whether it took the new time.
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 3_000_000_000)
+            guard let self, !Task.isCancelled, self.server?.stage == .ready else { return }
+            let phone = Calendar.current.dateComponents([.hour, .minute], from: Date())
+            guard let t = self.latestTelemetry, let h = t.clockHour, let m = t.clockMinute else {
+                self.append(L("🕒 Đã gửi giờ; chưa có dữ liệu đồng hồ từ xe để kiểm tra", "🕒 Time sent; no clock data from the scooter to check it"))
+                return
+            }
+            let ok = h == phone.hour && m == phone.minute
+            self.append(ok
+                ? L("🕒 ✅ Đồng hồ xe đã khớp điện thoại: \(Self.clockText(h, m))", "🕒 ✅ Scooter clock matches the phone: \(Self.clockText(h, m))")
+                : L("🕒 ⚠️ Đồng hồ xe vẫn là \(Self.clockText(h, m)) (điện thoại \(Self.clockText(phone.hour, phone.minute))) — màn hình này có thể không nhận lệnh chỉnh giờ",
+                    "🕒 ⚠️ Scooter clock still shows \(Self.clockText(h, m)) (phone \(Self.clockText(phone.hour, phone.minute))) — this TFT may not take the clock setting"))
+        }
+    }
+
+    private static func clockText(_ hour: Int?, _ minute: Int?) -> String {
+        guard let hour, let minute else { return "--:--" }
+        return String(format: "%02d:%02d", hour, minute)
+    }
+
+    private static func clockText(_ t: ScooterTelemetry?) -> String { clockText(t?.clockHour, t?.clockMinute) }
 
     /// Pop-up on the TFT (two lines, ASCII, ≤ 20 chars each). Cobo data link only.
     func showPopup(_ line1: String, _ line2: String) {
@@ -709,6 +774,7 @@ final class VespaBLE: NSObject, DashboardSink {
         scooterSubscribed = false
         indications.removeAll()
         coboAnswer = nil
+        clockSync = nil
         lastLoggedDash = nil
         telemetry = nil
         latestTelemetry = nil

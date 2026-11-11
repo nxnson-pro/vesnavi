@@ -100,6 +100,30 @@ public enum Cobo {
         [0x01, 0x04, 0x09, 0x00, 0x00] + id + [0x55, 0x55, 0x55, 0x55, 0x55]
     }
 
+    /// 0x27 is a write of one value: `01`, the value's number, the length, the data. Number 0x04 is the
+    /// read request above; number 0x0B puts one CAN frame on the scooter's bus: id (32 bits, low byte
+    /// first), data length, 8 data bytes.
+    public static func canFramePayload(id: UInt32, data: [UInt8]) -> [UInt8] {
+        let padded = Array(data.prefix(8)) + [UInt8](repeating: 0xFF, count: max(0, 8 - data.count))
+        return [0x01, 0x0B, 0x0D, UInt8(id & 0xFF), UInt8((id >> 8) & 0xFF), UInt8((id >> 16) & 0xFF), UInt8(id >> 24),
+                UInt8(min(data.count, 8))] + padded
+    }
+
+    /// CAN id the TFT of the GTS / Primavera (PMP2 generation) reads the phone's time from.
+    /// On other dashboards the same id means something else — never send it unasked.
+    public static let clockCanID: UInt32 = 0x600
+
+    /// Sets the TFT clock (hours 0–23, minutes; the TFT has no seconds): byte 3 = minutes × 2 + 1
+    /// (bit 0 = "set the clock"), byte 4 = hours. Not seen in the owner's capture, untested on a scooter.
+    public static func clockSetFrames(hour: Int, minute: Int) -> [[UInt8]] {
+        let m = UInt8(max(0, min(minute, 59)))
+        let h = UInt8(max(0, min(hour, 23)))
+        return frames(0x27, canFramePayload(id: clockCanID, data: [0, 0, 0, (m << 1) | 1, h, 0, 0, 0]))
+    }
+
+    /// Ends the clock setting: the same CAN frame, all zero.
+    public static let clockSetEndFrames: [[UInt8]] = frames(0x27, canFramePayload(id: clockCanID, data: [UInt8](repeating: 0, count: 8)))
+
     /// 0xC6 dash payload laid out like the official app: tags 01, 02, 03 and 04 are always present.
     /// `navigating` appends tag `06 04 00` ("navigation running"), needed on every packet while a route
     /// is active on the GTS Supertech — without it the TFT keeps its normal screen and ignores the arrow.
@@ -347,5 +371,26 @@ public final class CoboServerSession {
     private static func contains(_ haystack: [UInt8], _ needle: [UInt8]) -> Bool {
         guard haystack.count >= needle.count else { return false }
         return (0...(haystack.count - needle.count)).contains { Array(haystack[$0..<($0 + needle.count)]) == needle }
+    }
+}
+
+/// Sets the TFT clock from the phone once per data link: the clock frame 4 times, then the all-zero
+/// frame 4 times, one per tick (~0.5 s). Starts in the first seconds of a minute, so a TFT that
+/// restarts its minute on setting ends up in step with the phone.
+public struct CoboClockSync: Equatable, Sendable {
+    public static let repeats = 4
+    /// Frames sent so far (0…`repeats * 2`).
+    public private(set) var sent = 0
+    public var isDone: Bool { sent >= Self.repeats * 2 }
+    public var isRunning: Bool { sent > 0 && !isDone }
+
+    public init() {}
+
+    /// Call on every tick with the phone's local time; returns the frames to send now.
+    public mutating func tick(hour: Int, minute: Int, second: Int) -> [[UInt8]] {
+        if sent == 0, second > 2 { return [] }
+        guard !isDone else { return [] }
+        sent += 1
+        return sent <= Self.repeats ? Cobo.clockSetFrames(hour: hour, minute: minute) : Cobo.clockSetEndFrames
     }
 }

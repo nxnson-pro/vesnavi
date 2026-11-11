@@ -125,6 +125,14 @@ Sau gói `0x28`, xe gửi liên tục (~4 lần/giây) khung `C0 80` + 61 byte: 
 
 Các dòng có ✅ đã đối chiếu với đồng hồ xe; hệ số còn lại chưa kiểm chứng. Bộ giải mã: `NavCore/ScooterTelemetry.swift`, test `TelemetryTests`.
 
+## Chỉnh giờ đồng hồ TFT (thử nghiệm, chưa kiểm chứng trên xe)
+
+- Lệnh `0x27` là **ghi một giá trị**: `01`, số thứ tự giá trị, độ dài, dữ liệu. Yêu cầu đọc thông số ở trên chính là giá trị số `04` (9 byte). Giá trị số `0B` (13 byte) = **đưa một khung CAN lên bus của xe**: id 32 bit (byte thấp trước), số byte dữ liệu, 8 byte dữ liệu.
+- Đồng hồ: khung CAN id `0x600`, 8 byte `00 00 00 MM HH 00 00 00` với `MM = phút × 2 + 1` (bit 0 = "đặt giờ"), `HH = giờ` (0–23). Ví dụ 17:57 → `C0 44 51 00 27 10 01 0B 0D 00 06 00 00 08 00 00 00 73 11 00 00 00 77`.
+- Trình tự: gửi khung đặt giờ 4 lần liên tiếp, rồi khung toàn `00` 4 lần (kết thúc). VesNavi gửi mỗi 0,5 s một khung, bắt đầu trong 2 giây đầu của phút (`CoboClockSync`), kèm gói dash như thường.
+- TFT báo giờ của nó trong dữ liệu xe (`0x589` / 48 = giờ, / 40 = phút), nên app ghi log giờ xe trước và 3 s sau khi chỉnh để biết xe có nhận không.
+- **Chỉ màn hình TFT đời PMP2 của GTS / Primavera hiểu id `0x600` là đồng hồ.** Ở các bảng đồng hồ khác cùng id mang nghĩa khác — không gửi khi người dùng chưa bật. Trong bản ghi HCI 29/10 của xe này không có lệnh này (app chính hãng lúc đó không gửi), nên đây là tính năng **tắt mặc định**: Cài đặt → "Tự chỉnh giờ xe theo điện thoại", hoặc nút thử trong Bluetooth Lab.
+
 ## Popup và dòng chữ (thử nghiệm)
 
 - **Popup**: `C2 01 nền dòng1 3B dòng2 00`, chữ ASCII; nền = `13` với GTS 300 Supertech. Gửi **thay cho** gói dash trong 9 gói liên tiếp (~4,5 s) (`Cobo.popupPayload`, `VespaBLE.showPopup`).

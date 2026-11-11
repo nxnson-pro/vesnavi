@@ -17,6 +17,10 @@ targets:
       - App
     dependencies:
       - package: NavCore
+    # Team (and optionally another bundle id) for running from Xcode: Config/Local.xcconfig, not committed.
+    configFiles:
+      Debug: Config/Signing.xcconfig
+      Release: Config/Signing.xcconfig
     scheme:
       testTargets:
         - VespaNavUITests
@@ -39,8 +43,8 @@ targets:
           - bluetooth-peripheral
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.nxnson.vespanav
-        MARKETING_VERSION: "0.1.4"
+        PRODUCT_BUNDLE_IDENTIFIER: "$(VESNAVI_BUNDLE_ID:default=com.nxnson.vespanav)"
+        MARKETING_VERSION: "0.1.5"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CURRENT_PROJECT_VERSION: "1"
         SWIFT_VERSION: "5.0"

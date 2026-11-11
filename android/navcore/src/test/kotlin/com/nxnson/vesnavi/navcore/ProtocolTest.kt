@@ -174,6 +174,48 @@ class CoboTest {
     }
 
     @Test
+    fun `clock set frames`() {
+        // 0x27 = write one value; the known read request has the same shape (number 04, 9 bytes).
+        assertEquals(
+            listOf(hex("C0 44 51 00 27 0C 01 04 09 00 00 FE 0B 55 55 55 55 55 88")),
+            Cobo.frames(0x27, Cobo.readRequestPayload(listOf(0xFE, 0x0B))),
+        )
+        // 17:57 → CAN id 0x600 (low byte first), 8 bytes, minutes × 2 + 1 = 0x73, hours = 0x11.
+        assertEquals(
+            listOf(hex("C0 44 51 00 27 10 01 0B 0D 00 06 00 00 08 00 00 00 73 11 00 00 00 77")),
+            Cobo.clockSetFrames(17, 57),
+        )
+        assertEquals(
+            listOf(hex("C0 44 51 00 27 10 01 0B 0D 00 06 00 00 08 00 00 00 01 00 00 00 00 F4")),
+            Cobo.clockSetFrames(0, 0),
+        )
+        assertEquals(
+            listOf(hex("C0 44 51 00 27 10 01 0B 0D 00 06 00 00 08 00 00 00 00 00 00 00 00 F3")),
+            Cobo.clockSetEndFrames,
+        )
+        assertEquals(Cobo.clockSetFrames(23, 59), Cobo.clockSetFrames(99, 99), "clamped")
+        assertEquals(
+            hex("01 0B 0D 23 01 00 00 02 01 02 FF FF FF FF FF FF"),
+            Cobo.canFramePayload(0x123, listOf(1, 2)),
+            "short frames are padded with FF",
+        )
+    }
+
+    @Test
+    fun `clock sync sequence`() {
+        val sync = CoboClockSync()
+        assertTrue(sync.tick(8, 15, 30).isEmpty(), "waits for the start of a minute")
+        assertFalse(sync.isRunning)
+        // 4 × the clock frame (with the time of each tick), then 4 × the all-zero frame.
+        assertEquals(Cobo.clockSetFrames(8, 16), sync.tick(8, 16, 0))
+        assertTrue(sync.isRunning)
+        repeat(3) { assertEquals(Cobo.clockSetFrames(8, 16), sync.tick(8, 16, 40)) }
+        repeat(4) { assertEquals(Cobo.clockSetEndFrames, sync.tick(8, 16, 3)) }
+        assertTrue(sync.isDone)
+        assertTrue(sync.tick(8, 17, 0).isEmpty(), "once per data link")
+    }
+
+    @Test
     fun `server session without an answer`() {
         val s = CoboServerSession(null)
         val r = s.handleWrite(Cobo.answerRequest)

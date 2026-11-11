@@ -99,6 +99,14 @@ struct BluetoothLabView: View {
             } footer: {
                 Text(L("Gói C2 của app gốc, hiện ~4 giây. Cần trạng thái ✅ Sẵn sàng.", "The official app's C2 packet, shown for ~4 s. Needs ✅ Ready."))
             }
+
+            Section {
+                Button(L("🕒 Chỉnh giờ xe theo điện thoại", "🕒 Set the scooter clock from the phone")) { ble.syncClockNow() }
+            } header: {
+                Text(L("Đồng hồ xe (thử nghiệm)", "Scooter clock (experimental)"))
+            } footer: {
+                Text(L("Gửi ở đầu phút kế tiếp; log ghi giờ xe trước và sau. Cần trạng thái ✅ Sẵn sàng, chỉ với xe \"BT ROUTER\".", "Sent at the start of the next minute; the log shows the scooter's time before and after. Needs ✅ Ready, \"BT ROUTER\" scooters only."))
+            }
             .disabled(!ble.isReady)
 
             Section(L("Gửi byte thô (debug)", "Send raw bytes (debug)")) {

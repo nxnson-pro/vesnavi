@@ -1,10 +1,14 @@
-# VesNavi 0.1.4 — public beta
+# VesNavi 0.1.5 — public beta
 
 Free navigation that shows turn-by-turn directions on the TFT dashboard of the **Vespa GTS Supertech 300 HPE**, for **iPhone** and **Android**. This is a beta — please try it and report what breaks.
 
 **Install**
 - iPhone (iOS 17+): `VespaNav.ipa` — sideload with Sideloadly, or add the SideStore source `apps.json`. See the README.
 - Android 8.0+: `VesNavi.apk`.
+
+**New in 0.1.5**
+- **Scooter clock (experimental, off by default):** Settings → "Set the scooter clock from the phone" sets the TFT clock on every connection, at the start of the next minute. Only for the Vespa GTS / Primavera TFT that connects as "BT ROUTER"; not verified on a scooter yet, so leave it off on other models. Bluetooth Lab has a button to try it once, and the log shows the scooter's time before and after.
+- With a Mac you can now run the app straight from Xcode (see "Running from Xcode" in the README); your signing Team is kept in a local file.
 
 **New in 0.1.4**
 - The TFT now shows the turn after the next one (small arrow + distance on the right) instead of "…".
@@ -41,6 +45,10 @@ App dẫn đường **miễn phí** hiện hướng rẽ lên màn hình TFT c�
 **Cài đặt**
 - iPhone (iOS 17 trở lên): `VespaNav.ipa` — cài bằng Sideloadly, hoặc thêm nguồn SideStore `apps.json`. Xem README.
 - Android 8.0 trở lên: `VesNavi.apk`.
+
+**Mới trong 0.1.5**
+- **Đồng hồ xe (thử nghiệm, mặc định tắt):** Cài đặt → "Tự chỉnh giờ xe theo điện thoại" đặt đồng hồ trên màn hình xe mỗi lần kết nối, vào đầu phút kế tiếp. Chỉ dành cho màn hình TFT của Vespa GTS / Primavera kết nối kiểu "BT ROUTER"; chưa kiểm chứng trên xe nên đừng bật với dòng xe khác. Bluetooth Lab có nút thử một lần, log ghi giờ xe trước và sau.
+- Có máy Mac thì chạy app thẳng từ Xcode (xem "Chạy thẳng từ Xcode" trong README); Team ký app được lưu trong một file riêng trên máy.
 
 **Mới trong 0.1.4**
 - Màn hình xe hiện hướng rẽ sau hướng kế tiếp (mũi tên nhỏ + khoảng cách bên phải) thay vì "…".

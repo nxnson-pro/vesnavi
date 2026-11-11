@@ -115,6 +115,12 @@ jobs:
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             build
+      - name: Check the bundle identifier
+        # It comes from a build setting with a default (Config/Signing.xcconfig lets a Mac override it).
+        run: |
+          id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' build/Build/Products/Release-iphoneos/VespaNav.app/Info.plist)
+          echo "CFBundleIdentifier: $id"
+          test "$id" = "com.nxnson.vespanav"
       - name: Package IPA
         run: |
           mkdir -p Payload

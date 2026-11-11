@@ -82,6 +82,18 @@ App được vibe code: một người đi xe làm cùng trợ lý lập trình 
 
 Chỉ cần ghép đôi một lần, những lần sau app tự kết nối khi bật xe. Có lỗi: **Xe của tôi → Bluetooth Lab → Báo lỗi lên GitHub** — app mở sẵn form issue kèm log (đã ẩn địa chỉ Bluetooth, khoá ghép đôi, tên thiết bị khác), bạn chỉ cần đăng nhập GitHub và bấm *Submit*. Hoặc mở [form báo lỗi](https://github.com/nxnson-pro/vesnavi/issues/new?template=bug_report.yml) trực tiếp.
 
+## Chạy thẳng từ Xcode (máy Mac)
+
+Có Mac thì không cần tải IPA hay Sideloadly: build và chạy thẳng lên iPhone.
+
+1. Cài Xcode, thêm Apple ID ở **Xcode → Settings → Accounts**, và cài XcodeGen: `brew install xcodegen`.
+2. `git clone https://github.com/nxnson-pro/vesnavi.git && cd vesnavi && xcodegen generate && open VespaNav.xcodeproj`
+3. Làm một lần: chọn project **VespaNav** (dòng đầu cột trái) → target **VespaNav** → **Signing & Capabilities** → tick **Automatically manage signing** và chọn **Team** của bạn. Sau đó chạy `scripts/save-signing.sh`: nó lưu Team vào `Config/Local.xcconfig` (không đưa lên GitHub), nên các lần `xcodegen generate` sau vẫn giữ. Nếu Xcode báo bundle identifier đã có người dùng, thêm dòng `VESNAVI_BUNDLE_ID = com.tenban.vesnavi` vào file đó.
+4. Trên iPhone: tin cậy máy Mac, bật **Cài đặt → Quyền riêng tư & Bảo mật → Chế độ nhà phát triển**, và gỡ bản app đã cài bằng cách khác (chữ ký khác nhau).
+5. Chọn iPhone trên thanh công cụ Xcode rồi bấm **⌘R**. Cập nhật: `git pull && xcodegen generate`, rồi **⌘R**.
+
+Apple ID miễn phí vẫn giới hạn 7 ngày; chạy lại để gia hạn.
+
 ## Phát hành phiên bản mới
 
 1. Sửa `MARKETING_VERSION` trong `project.yml` và ghi chú trong `CHANGELOG.md` (tiếng Anh trước, tiếng Việt sau).

@@ -91,6 +91,18 @@ The app isn't on the App Store; install it yourself with a free Apple ID.
 
 You only pair once; after that VesNavi connects by itself when you start the scooter. For the parking spot to be saved with the phone in your pocket, allow **"Always"** location access. If something goes wrong: **My scooter → Bluetooth Lab → Report a bug on GitHub** — the app opens a pre-filled issue with the log (Bluetooth addresses, pairing keys and other devices' names removed); sign in to GitHub and tap *Submit*. Or open the [bug report form](https://github.com/nxnson-pro/vesnavi/issues/new?template=bug_report.yml) directly.
 
+## Running from Xcode (Mac)
+
+With a Mac you can skip the IPA and Sideloadly: build and run straight onto the iPhone.
+
+1. Install Xcode, add your Apple ID under **Xcode → Settings → Accounts**, and install XcodeGen: `brew install xcodegen`.
+2. `git clone https://github.com/nxnson-pro/vesnavi.git && cd vesnavi && xcodegen generate && open VespaNav.xcodeproj`
+3. Once: select the **VespaNav** project (top of the left column) → target **VespaNav** → **Signing & Capabilities** → tick **Automatically manage signing** and choose your **Team**. Then run `scripts/save-signing.sh`: it stores the Team in `Config/Local.xcconfig` (not committed), so later `xcodegen generate` runs keep it. If Xcode says the bundle identifier is taken, add `VESNAVI_BUNDLE_ID = com.yourname.vesnavi` to that file.
+4. On the iPhone: trust the Mac, turn on **Settings → Privacy & Security → Developer Mode**, and remove a copy of the app installed another way (it is signed differently).
+5. Pick the iPhone in Xcode's toolbar and press **⌘R**. To update: `git pull && xcodegen generate`, then **⌘R**.
+
+A free Apple ID still limits the app to 7 days; run it again to renew.
+
 ## Building from source
 
 There's no need for a Mac: GitHub Actions builds everything.

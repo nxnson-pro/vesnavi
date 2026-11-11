@@ -156,6 +156,35 @@ final class CoboTests: XCTestCase {
         XCTAssertTrue(s.handleWrite(hex("C0 44 51 00 11 06 FF 02 00 FF 01 00 AD")).indications.isEmpty)
     }
 
+    func testClockSetFrames() {
+        // 0x27 = write one value; the known read request has the same shape (number 04, 9 bytes).
+        XCTAssertEqual(Cobo.frames(0x27, Cobo.readRequestPayload([0xFE, 0x0B])),
+                       [hex("C0 44 51 00 27 0C 01 04 09 00 00 FE 0B 55 55 55 55 55 88")])
+        // 17:57 → CAN id 0x600 (low byte first), 8 bytes, minutes × 2 + 1 = 0x73, hours = 0x11.
+        XCTAssertEqual(Cobo.clockSetFrames(hour: 17, minute: 57),
+                       [hex("C0 44 51 00 27 10 01 0B 0D 00 06 00 00 08 00 00 00 73 11 00 00 00 77")])
+        XCTAssertEqual(Cobo.clockSetFrames(hour: 0, minute: 0),
+                       [hex("C0 44 51 00 27 10 01 0B 0D 00 06 00 00 08 00 00 00 01 00 00 00 00 F4")])
+        XCTAssertEqual(Cobo.clockSetEndFrames,
+                       [hex("C0 44 51 00 27 10 01 0B 0D 00 06 00 00 08 00 00 00 00 00 00 00 00 F3")])
+        XCTAssertEqual(Cobo.clockSetFrames(hour: 99, minute: 99), Cobo.clockSetFrames(hour: 23, minute: 59), "clamped")
+        XCTAssertEqual(Cobo.canFramePayload(id: 0x123, data: [1, 2]),
+                       hex("01 0B 0D 23 01 00 00 02 01 02 FF FF FF FF FF FF"), "short frames are padded with FF")
+    }
+
+    func testClockSyncSequence() {
+        var sync = CoboClockSync()
+        XCTAssertTrue(sync.tick(hour: 8, minute: 15, second: 30).isEmpty, "waits for the start of a minute")
+        XCTAssertFalse(sync.isRunning)
+        // 4 × the clock frame (with the time of each tick), then 4 × the all-zero frame.
+        XCTAssertEqual(sync.tick(hour: 8, minute: 16, second: 0), Cobo.clockSetFrames(hour: 8, minute: 16))
+        XCTAssertTrue(sync.isRunning)
+        for _ in 0..<3 { XCTAssertEqual(sync.tick(hour: 8, minute: 16, second: 40), Cobo.clockSetFrames(hour: 8, minute: 16)) }
+        for _ in 0..<4 { XCTAssertEqual(sync.tick(hour: 8, minute: 16, second: 3), Cobo.clockSetEndFrames) }
+        XCTAssertTrue(sync.isDone)
+        XCTAssertTrue(sync.tick(hour: 8, minute: 17, second: 0).isEmpty, "once per data link")
+    }
+
     func testServerSessionWithoutAnswer() {
         let s = CoboServerSession(answer: nil)
         let r = s.handleWrite(Cobo.answerRequest)
